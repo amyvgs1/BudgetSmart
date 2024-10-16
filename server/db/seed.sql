@@ -1,0 +1,2 @@
+INSERT or REPLACE INTO users (first_name, last_name, username, email, password) VALUES ('Jane', 'Doe', 'janeDoe123', "jdoe1@example.com", 'abc123');
+INSERT or REPLACE INTO users (first_name, last_name, username, email, password) VALUES ('John', 'Doe', 'johnDoe2', 'jdoe3@example.com', 'abc123');
