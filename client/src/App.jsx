@@ -10,7 +10,7 @@ import { AboutUs, FAQ } from './pages/BarExtras';
 
 
 
-// conditional rendering between regular navbar and user navbar 
+// conditional rendering between regular navbar and user navbar
 
 function App() {
   const [isLoggedIn, setLoggedIn] = useState(false);
@@ -24,7 +24,7 @@ function App() {
         <Route path='/faq' element={<FAQ/>}/>
         <Route path='/about' element={<AboutUs/>}/>
         <Route element={<PrivateRoute isLoggedIn={isLoggedIn}/>}>
-          <Route path="/dashboard" element={<Dashboard/>}/> 
+          <Route path="/dashboard" element={<Dashboard/>}/>
         </Route>
         <Route path='*' element={<h1>Error page : implement later</h1>}/>
       </Routes>
