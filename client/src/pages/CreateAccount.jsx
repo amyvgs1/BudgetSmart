@@ -1,3 +1,5 @@
+// this page is where users can create an account. will have to implement a axios section to create a new database entry
+
 import NavBar from "../components/NavBar";
 import moneyback from "../assets/moneyback2.png";
 import { Link } from "react-router-dom";

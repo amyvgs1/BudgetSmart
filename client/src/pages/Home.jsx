@@ -1,3 +1,5 @@
+// this page is the home page, or the page that all users will first see when accessing the website. Not user dashboard
+
 import NavBar from "../components/NavBar";
 import mainImage from "../assets/budgeting.png";
 import { Link } from "react-router-dom";

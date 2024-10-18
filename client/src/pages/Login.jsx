@@ -1,3 +1,14 @@
+// this is the page that is for user login. this is an example of being able to access the database
+
+// useNavigate allows us to access all routes that we have created
+// the useStates are meant to monitor user inputted email and password to verify credentials and there is one to set a message based on output of verification
+
+// the verify login arrow function is meant to verify user input login credentials. it works as follows:
+// 1. The function will try to communicate with the server by sending the login information
+// 2. Based on server response, axios.post will either succeed or fail. 
+// 3. if axios.post is successful, then the logic within the try block will continue being executed
+// 4. if not, then an error will be caught and dealt with accordingly
+
 import NavBar from "../components/NavBar";
 import moneyback from "../assets/moneyback2.png";
 import { Link, useNavigate } from "react-router-dom";

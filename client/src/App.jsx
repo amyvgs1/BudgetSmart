@@ -12,6 +12,9 @@ import { AboutUs, FAQ } from './pages/BarExtras';
 
 // conditional rendering between regular navbar and user navbar
 
+// this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
+// represents the page
+
 function App() {
   const [isLoggedIn, setLoggedIn] = useState(false);
 

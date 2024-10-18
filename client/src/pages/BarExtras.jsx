@@ -1,3 +1,5 @@
+// this is for the extra pages like faq and about us
+
 import NavBar from "../components/NavBar";
 
 export function FAQ(){
