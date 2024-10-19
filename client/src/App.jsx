@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/PrivateRoute';
 import { AboutUs, FAQ } from './pages/BarExtras';
 import Calculator from './components/calculator';
+import UserNavBar from './components/UserNavBar';
 
 
 
