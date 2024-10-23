@@ -19,5 +19,7 @@
   <li>
     On both terminals run the command 'npm run dev'
   </li>
+
+  <h3>If running into issues with server terminal, delete node_modules folder and rerun npm install</h3>
     
 </ol>
