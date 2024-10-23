@@ -10,13 +10,10 @@ const corsOptions = {
 // initialize database with exported function
 const db = initDatabase();
 
-
+// middleware
 app.use(cors(corsOptions));
 app.use(express.json())
 
-app.get("/api", (req, res) =>{
-    res.json({test : [1, 2, 3, 4]});
-});
 
 app.post('/login', (req, res) =>{
     const {email, password} = req.body;
@@ -35,9 +32,22 @@ app.post('/login', (req, res) =>{
             return res.status(401).json({message:'Invalid Email or Password'});
         }
 
-        return res.status(200).json({message:'Login Successful'});
+        console.log(row.user_id);
+        return res.status(200).json({message:'Login Successful', id: row.user_id, name:`${row.first_name} ${row.last_name}`});
     })
 })
+
+app.post('/create', (req, res) =>{
+    const {firstName, lastName, username, email, password} = req.body;
+
+    db.run(`INSERT INTO users(first_name, last_name, username, email, password) VALUES(?,?,?,?,?)`, [firstName, lastName, username, email, password], (err, row) => {
+        if(err){
+            return res.status(500).json({message:"Database Error"});
+        }
+
+        return res.status(200).json({message:`Account Created`});
+    });
+});
 
 app.listen(8080, () => {
     console.log("Server started on port 8080");

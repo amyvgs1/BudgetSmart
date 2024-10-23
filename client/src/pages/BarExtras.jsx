@@ -1,6 +1,4 @@
 // this is for the extra pages like faq and about us
-
-import NavBar from "../components/NavBar";
 import { ToggleBox } from "../components/ToggleBox";
 import aboutUs from "../assets/aboutUs.png";
 
@@ -13,7 +11,6 @@ export function FAQ() {
 
     return (
         <>
-            <NavBar />
             <div className="h-screen w-screen flex flex-col justify-center font-Outfit">
                 <div className="flex justify-center p-5 mb-5 mt-20 bg-blue-200"><span className="font-bold text-5xl"><h1>Frequently Asked Questions (FAQs)</h1></span></div>
                 <span className="text-center text-2xl"><h1>You Have Questions? Hopefully We Were Able To Answer Some Below: </h1></span>
@@ -31,7 +28,6 @@ export function FAQ() {
 export function AboutUs() {
     return (
         <>
-            <NavBar />
             <div className="h-screen w-screen flex flex-row font-Outfit">
                 <div className="flex flex-col justify-center items-center h-screen w-2/5 bg-blue-200">
                     <span className="text-6xl font-bold"><h1>About</h1></span>
