@@ -37,6 +37,7 @@ export default function Login(props){
 
             setMessage('Login Successful');
             props.setAuth(true);
+            
             navigate('/dashboard', {state : {id: res.data.id, name: res.data.name}})
 
         } catch(err) {
