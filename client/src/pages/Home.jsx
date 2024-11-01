@@ -7,8 +7,6 @@ import { Link } from "react-router-dom";
 export default function Home() {
     return (
         <>
-            <NavBar />
-
             <div className="bg-gradient-to-r from-blue-800 to-blue-500 h-screen w-full flex flex-col items-center justify-center space-x-4">
                 <div className=" text-center">
                     <span className=" font-Outfit text-7xl font-bold"><h1>Where Budgeting Meets Efficiency</h1></span>

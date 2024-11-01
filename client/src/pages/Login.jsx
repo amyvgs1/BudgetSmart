@@ -9,14 +9,14 @@
 // 3. if axios.post is successful, then the logic within the try block will continue being executed
 // 4. if not, then an error will be caught and dealt with accordingly
 
-import NavBar from "../components/NavBar";
+
 import moneyback from "../assets/moneyback2.png";
 import { Link, useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { useState } from "react";
 
 export default function Login(props){
-    const nav = useNavigate();
+    const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
     const [pass, setPass] = useState('');
@@ -33,9 +33,11 @@ export default function Login(props){
                 password: pass
             });
 
+
+
             setMessage('Login Successful');
-            props.setLoggedIn(true);
-            nav('/dashboard');
+            props.setAuth(true);
+            navigate('/dashboard', {state : {id: res.data.id, name: res.data.name}})
 
         } catch(err) {
             if (err.response){
@@ -48,7 +50,6 @@ export default function Login(props){
 
     return(
         <>
-            <NavBar />
             <div className="flex items-center justify-center w-full h-screen" style={{ backgroundImage: `url(${moneyback})` }}>
                 <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-5">
                     <span className="font-Outfit text-4xl font-semibold"><h1>Log In</h1></span>
