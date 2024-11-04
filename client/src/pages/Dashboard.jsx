@@ -4,6 +4,7 @@
 import { useLocation, useParams } from "react-router-dom";
 
 export default function Dashboard(){
+    
     const location = useLocation();
 
     const user = location.state?.name;

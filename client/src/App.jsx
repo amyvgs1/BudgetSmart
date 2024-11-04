@@ -17,14 +17,16 @@ import { UserBudgets } from "./pages/UserBudgets";
 // this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
 // represents the page
 function App() {
-  const [auth, setAuth] = useState(() => {
-    const savedAuth = localStorage.getItem("auth");
-    return savedAuth === "true"; // Convert back to boolean
-  });
+  // const [auth, setAuth] = useState(() => {
+  //   const savedAuth = localStorage.getItem("auth");
+  //   return savedAuth === "true"; // Convert back to boolean
+  // });
 
-  useEffect(() => {
-    localStorage.setItem("auth", auth);
-  }, [auth]);
+  const [auth, setAuth] = useState(false);
+
+  // useEffect(() => {
+  //   localStorage.setItem("auth", auth);
+  // }, [auth]);
 
   return (
     <>
