@@ -25,6 +25,11 @@ export default function Profile(props) {
 
     const logout = () => {
         console.log("works");
+
+        // get rid of all stored session values when logging out
+        sessionStorage.removeItem("user_id");
+        sessionStorage.removeItem("user_name");
+
         props.setAuth(false);
         navigate('/login');
     };

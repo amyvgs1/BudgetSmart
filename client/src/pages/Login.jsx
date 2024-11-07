@@ -35,8 +35,12 @@ export default function Login(props){
 
   
 
-            setMessage('Login Successful');
+            setMessage('');
             props.setAuth(true);
+
+            // store user id for future queries using session storage
+            sessionStorage.setItem('user_id', res.data.id);
+            sessionStorage.setItem('user_name', res.data.name);
             
             navigate('/dashboard', {state : {id: res.data.id, name: res.data.name}})
 
