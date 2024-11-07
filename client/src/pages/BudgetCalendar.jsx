@@ -1,32 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
+import axios from 'axios';
 import 'react-calendar/dist/Calendar.css';
 
 const BudgetCalendar = () => {
     const [date, setDate] = useState(new Date());
     const [events, setEvents] = useState([]);
-    /*
-    // Use mock data for testing purposes
+    
+    // Fetch budget plans from the API when the component mounts
     useEffect(() => {
-        setEvents([
-            {
-                budget_id: 1,
-                budget_name: "BudgetTest1",   
-                total_budget: 100,
-                start_date: new Date("2024-11-03T00:00:00"),
-                end_date: new Date("2024-11-06T23:59:59")
-            }
-        ]);
-    }, []);
-    */
-     // Fetch budget plans from the API when the component mounts
-     useEffect(() => {
         fetchBudgetPlans();
     }, []);
 
     const fetchBudgetPlans = async () => {
         try {
-            const response = await axios.get('http://localhost:8081/budget_plan');
+            const userId = sessionStorage.getItem("user_id");
+            const response = await axios.get(`http://localhost:8081/plans?user_id=${userId}`);
             console.log("Fetched budget plans:", response.data); 
             // Convert start_date and end_date to Date objects
             const formattedData = response.data.map(event => ({
@@ -45,10 +34,16 @@ const BudgetCalendar = () => {
         const eventStartDate = new Date(event.start_date);
         const eventEndDate = new Date(event.end_date);
         const selectedDate = new Date(date);
-
-        // Check if selectedDate is within the range of start_date and end_date
-        return selectedDate >= eventStartDate && selectedDate <= eventEndDate;
+        
+        // Normalize dates to the start of the day
+        const normalizedSelectedDate = new Date(selectedDate.setHours(0, 0, 0, 0));
+        const normalizedEventStartDate = new Date(eventStartDate.setHours(0, 0, 0, 0));
+        const normalizedEventEndDate = new Date(eventEndDate.setHours(23, 59, 59, 999));
+    
+        // Check if normalizedSelectedDate is within the range
+        return normalizedSelectedDate >= normalizedEventStartDate && normalizedSelectedDate <= normalizedEventEndDate;
     });
+    
 
     return (
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6 mt-8">
@@ -80,6 +75,7 @@ const BudgetCalendar = () => {
 };
 
 export default BudgetCalendar;
+
 
 
 

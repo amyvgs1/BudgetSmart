@@ -1,6 +1,8 @@
 const sqlite3 = require("sqlite3").verbose();
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
+const cors = require('cors');
 
 // database path
 const db_path = path.join(__dirname,'BudgetSmart_data.db');
@@ -15,33 +17,76 @@ function initDatabase(){
         if (err){
             console.log(`Error: ${err.message}`);
         } else{
-            console.log('Database intialization was sucessful');
+            console.log('Database initialization was successful');
         }
     });
 
-    // initialize db tables
+    // Initialize db tables
     const initSql = fs.readFileSync(initDbPath, 'utf8');
 
-    // execute the sql script
+    // Execute the SQL script
     db.exec(initSql, (err) => {
         if (err){
             console.log(`Error: ${err.message}`);
         } else{
-            console.log('Database was initializd');
+            console.log('Database was initialized');
 
-            // provide dummy values
+            // Provide dummy values
             const dummySql = fs.readFileSync(dummyVals, 'utf8');
-            db.exec(dummySql, (err) =>{
+            db.exec(dummySql, (err) => {
                 if (err){
                     console.log(`Error: ${err.message}`);
-                } else{
-                    console.log('Dummy values inserted successfully')
+                } else {
+                    console.log('Dummy values inserted successfully');
                 }
             });
         }
     });
     return db;
 }
+// Fetch Budget function
+function fetchBudget(db) {
+    const app = express();
+    app.use(cors());
+    
+    // Middleware to log all requests
+    app.use((req, res, next) => {
+        console.log(`Request Method: ${req.method}, Request URL: ${req.url}`);
+        next();
+    });
 
-module.exports = {initDatabase}
+    // Setup route
+    app.get('/plans', (req, res) => {
+        console.log("Received GET request on /plans");
+        const userId = req.query.user_id;
+
+        if (!userId) {
+            console.log("No user_id provided");
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
+        // Query budget plans for the specified user_id
+        db.all("SELECT * FROM budget_plan WHERE user_id = ?", [userId], (err, rows) => {
+            if (err) {
+                console.error("Error fetching budget plans:", err.message);
+                res.status(500).json({ error: "Failed to fetch budget plans" });
+            } else {
+                console.log("Successfully fetched budget plans:", rows);
+                res.json(rows);
+            }
+        });
+    });
+    
+    // Start server
+    const PORT = 8081;
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
+
+// Start the application
+const db = initDatabase(); // Initialize the database
+fetchBudget(db);
+
+module.exports = { initDatabase };
 
