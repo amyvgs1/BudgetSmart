@@ -21,20 +21,22 @@ CREATE TABLE IF NOT EXISTS budget_plan (
     curr_val REAL DEFAULT 0,
     successful BOOLEAN DEFAULT true,
     is_group_plan BOOLEAN DEFAULT false,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
+    start_date DATE,
+    end_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 CREATE TABLE IF NOT EXISTS group_plan_members (
     budget_id INT,
-    memeber_id INT,
-    PRIMARY KEY (budget_id, memeber_id) FOREIGN KEY (budget_id) REFERENCES budget_plan(budget_id),
-    FOREIGN KEY (memeber_id) REFERENCES users(user_id)
+    member_id INT,
+    username VARCHAR(100),
+    PRIMARY KEY (budget_id, member_id) FOREIGN KEY (budget_id) REFERENCES budget_plan(budget_id),
+    FOREIGN KEY (member_id) REFERENCES users(user_id)
 );
 CREATE TABLE IF NOT EXISTS budget_items (
     item_id INTEGER PRIMARY KEY AUTOINCREMENT,
     budget_id INT,
+    item_name VARCHAR(100),
     category_id INT,
     amount REAL NOT NULL,
     FOREIGN KEY (budget_id) REFERENCES budget_plan(budget_id),

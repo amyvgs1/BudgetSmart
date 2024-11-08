@@ -12,6 +12,7 @@ import NavBar from "./components/NavBar";
 import UserNavBar from "./components/UserNavBar";
 import Profile from "./pages/Profile";
 import { UserBudgets } from "./pages/UserBudgets";
+import PlanDisplay from "./pages/PlanDisplay";
 import ArticlesPage from "./pages/ArticlesPage";
 
 // this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
@@ -68,6 +69,7 @@ function App() {
           <Route path="/addfriends" element={<h1>This is the friend adder page</h1>} />
           <Route path="/mybudgets" element={<UserBudgets />} />
           <Route path="/leader" element={<h1>This is the leaderboard page</h1>} />
+          <Route path="/budgetdisplay/:budgetId" element={<PlanDisplay />} />
         </Route>
         <Route path="*" element={<h1>Error page: implement later</h1>} />
       </Routes>
