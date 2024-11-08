@@ -19,7 +19,7 @@ import ArticlesPage from "./pages/ArticlesPage";
 // represents the page
 
 function App() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const [auth, setAuth] = useState(false);
 
@@ -69,7 +69,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login setAuth={setAuth}/>} />
-        <Route path="/create" element={<CreateAccount />} />
+        <Route path="/create" element={<CreateAccount setAuth={setAuth}/>} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route element={<PrivateRoute auth={auth} />}>

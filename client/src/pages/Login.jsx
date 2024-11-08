@@ -56,7 +56,7 @@ export default function Login(props){
     return(
         <>
             <div className="flex items-center justify-center w-full h-screen" style={{ backgroundImage: `url(${moneyback})` }}>
-                <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-5">
+                <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-8">
                     <span className="font-Outfit text-4xl font-semibold"><h1>Log In</h1></span>
                     <p>Welcome Back!</p>
                     <span className="text-red-500 font-semibold"><p>{message}</p></span>
@@ -75,7 +75,7 @@ export default function Login(props){
                         <button type="submit" className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Login</button>
                     </form>
 
-                    <Link to="/create"><p>Dont have an account? Create one here!</p></Link>
+                    <Link to="/create" className="text-blue-500 hover:underline"><p>Dont have an account? Create one here!</p></Link>
 
                 </div>
             </div>

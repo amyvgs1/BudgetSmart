@@ -42,10 +42,11 @@ app.post('/create', (req, res) =>{
 
     db.run(`INSERT INTO users(first_name, last_name, username, email, password) VALUES(?,?,?,?,?)`, [firstName, lastName, username, email, password], (err, row) => {
         if(err){
+            console.log(err)
             return res.status(500).json({message:"Database Error"});
         }
-
-        return res.status(200).json({message:`Account Created`});
+        console.log(row);
+        return res.status(200).json({ message: 'account created' });
     });
 });
 
