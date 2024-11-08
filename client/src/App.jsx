@@ -12,8 +12,9 @@ import NavBar from "./components/NavBar";
 import UserNavBar from "./components/UserNavBar";
 import Profile from "./pages/Profile";
 import { UserBudgets } from "./pages/UserBudgets";
-
-
+import LeaderBoard from "./pages/LeaderBoard";
+import CurrencyConverter from "./pages/CurrencyConverter";
+import AddFriends from "./pages/AddFriends";
 // this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
 // represents the page
 function App() {
@@ -47,13 +48,14 @@ function App() {
           />
           <Route
             path="/addfriends"
-            element={<h1>This is the friend adder page</h1>}
+            element={<AddFriends />}
           />
           <Route path="/mybudgets" element={<UserBudgets />} />
           <Route
             path="/leader"
-            element={<h1>This is the leaderboard page</h1>}
+            element={<LeaderBoard />}
           />
+          <Route path="/currency" element={<CurrencyConverter />} />
         </Route>
         <Route path="*" element={<h1>Error page : implement later</h1>} />
       </Routes>
