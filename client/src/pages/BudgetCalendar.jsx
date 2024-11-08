@@ -15,10 +15,10 @@ const BudgetCalendar = () => {
     const fetchBudgetPlans = async () => {
         try {
             const userId = sessionStorage.getItem("user_id");
-            const response = await axios.get(`http://localhost:8081/plans?user_id=${userId}`);
-            console.log("Fetched budget plans:", response.data); 
+            const response = await axios.get(`http://localhost:8080/api/mybudgets-display`, {params:{user_id:userId}});
+            console.log("Fetched budget plans:", response.data.budgets); 
             // Convert start_date and end_date to Date objects
-            const formattedData = response.data.map(event => ({
+            const formattedData = response.data.budgets.map(event => ({
                 ...event,
                 start_date: new Date(event.start_date),
                 end_date: new Date(event.end_date)
