@@ -87,7 +87,7 @@ export default function PlanForm(props) {
     }
 
     return (
-        <div className="flex flex-col justify-center items-center w-full h-screen font-Outfit mt-40">
+        <div className="flex flex-col justify-center items-center w-full h-full font-Outfit mt-20">
 
             <div onClick={backBehavior} className="top-0 left-0 fixed mt-20 ml-5 text-2xl text-blue-700 hover:cursor-pointer hover:text-blue-500">
                 <p>Back</p>
@@ -98,8 +98,8 @@ export default function PlanForm(props) {
             </div>
 
 
-            <div className="flex flex-col justify-center items-center h-screen w-1/2 shadow-lg p-5">
-                <form className="flex flex-col items-center w-full h-full space-y-7 mt-10">
+            <div className="flex flex-col justify-center items-center h-full w-1/2 shadow-lg overflow-y-scroll p-10">
+                <form className="flex flex-col items-center w-full h-full space-y-7">
                     {errorMessage !== "" && <h1 className="text-red-400">{errorMessage}</h1>}
 
                     <p>Budget Name:</p>
@@ -164,19 +164,25 @@ export default function PlanForm(props) {
                     </div>
 
 
-                    {listItems.length !== 0 &&
-                        <div className="h-1/3 flex flex-col justify-content items-center w-full space-y-3">
+                    {listItems.length !== 0 ?
+                        <div className="h-1/3 flex flex-col justify-content items-center w-full space-y-3 mb-10">
                             <h1>Current Budget Items:</h1>
-                            <div className="flex flex-col justify-content items-center space-y-3 h-full w-full overflow-y-scroll">
+                            <div className="flex flex-col justify-content items-center space-y-3 h-4/5 w-full overflow-y-scroll">
                                 {listItems.map((element, index) => {
                                     return <ListItem addListItem={addListItem} itemsList={listItems} itemName={element.name} itemAmount={element.amount} index={index} />
                                 })}
                             </div>
+                            <button type="button" onClick={submitBehavior} className="rounded-lg bg-orange-200 w-1/2 h-1/5 hover:pointer-cursor hover:bg-orange-100 p-2">Create Plan</button>
                         </div>
-
+                        :
+                        <div className="w-1/2 h-10 mb-10">
+                            <button type="button" onClick={submitBehavior} className="rounded-lg bg-orange-200 w-full h-full hover:pointer-cursor hover:bg-orange-100 p-2">Create Plan</button>
+                        </div>
                     }
 
-                    <button type="button" onClick={submitBehavior} className="rounded-lg bg-orange-200 w-1/2 h-10 hover:pointer-cursor hover:bg-orange-100">Create Plan</button>
+                    {/* <div className="w-1/2 h-10 mb-10">
+                        <button type="button" onClick={submitBehavior} className="rounded-lg bg-orange-200 w-full h-full hover:pointer-cursor hover:bg-orange-100">Create Plan</button>
+                    </div> */}
                 </form>
             </div>
 

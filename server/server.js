@@ -46,7 +46,7 @@ app.post('/create', (req, res) =>{
             return res.status(500).json({message:"Database Error"});
         }
         console.log(row);
-        return res.status(200).json({ message: 'account created' });
+        return res.status(200).json({ message: 'account created', user_name:`${firstName} ${lastName}`, id: this.lastID});
     });
 });
 

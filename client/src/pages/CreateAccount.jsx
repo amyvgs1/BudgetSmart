@@ -35,6 +35,10 @@ export default function CreateAccount(props) {
             );
 
             props.setAuth(true);
+
+            sessionStorage.setItem("user_name", res.data.user_name);
+            sessionStorage.setItem("user_id", res.data.id);
+
             navigate("/dashboard");
 
         } catch (err){
