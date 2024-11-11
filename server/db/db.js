@@ -85,8 +85,13 @@ function fetchBudget(db) {
 }
 
 // Start the application
-const db = initDatabase(); // Initialize the database
-fetchBudget(db);
+
+// there is already database initalization in server. if any database actions are needed do it in server this file is just for initializing 
+// database logic, i should have mentioned that but with this logic we have database intialization twice.
+
+// const db = initDatabase(); 
+// Initialize the database
+// fetchBudget(db);
 
 module.exports = { initDatabase };
 

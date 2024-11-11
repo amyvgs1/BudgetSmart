@@ -18,7 +18,6 @@ export default function CreateAccount(props) {
     const [message, setMessage] = useState("");
 
     const createAccount = async (e) => {
-        e.preventDefault()
 
         if(password !== rePass){
             return setMessage("Passwords do not match, please retype.");
@@ -41,10 +40,12 @@ export default function CreateAccount(props) {
         } catch (err){
             if(err.response){
                 setMessage(err.response.data.message)
-            } else {
-                setMessage("all good")
-            }
+            } 
+            //else {
+            //     setMessage("all good") // error
+            // }
         }
+        e.preventDefault()
     }
 
 
@@ -52,13 +53,13 @@ export default function CreateAccount(props) {
     return (
         <>
             <div className="flex items-center justify-center w-full h-screen" style={{backgroundImage:`url(${moneyback})`}}>
-                <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-5 mt-10">
+                <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-8 mt-10">
                     <span className="font-Outfit text-4xl font-semibold"><h1>Create Account</h1></span>
                     <p>Say hello to budgeting the right way</p>
 
                     <span className="text-red-500 font-semibold"><p>{message}</p></span>
 
-                    <form onSubmit={createAccount} className="mt-5 grid grid-cols-4 gap-4 mb-3">
+                    <form className="mt-5 grid grid-cols-4 gap-4 mb-3">
                         <div className="col-span-2 ">
                             <p>First Name</p>
                             <input value={firstName} className={inputStyle} placeholder="Jane" onChange={(e) => setFirstName(e.target.value)}></input>
@@ -89,10 +90,10 @@ export default function CreateAccount(props) {
                             <input value={rePass} className={inputStyle} placeholder="retype password" onChange={(e) => setRePass(e.target.value)}></input>
                         </div>
 
-                        <button type="submit" className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Submit</button>
+                        <button type="button" onClick={createAccount} className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Submit</button>
                     </form>
 
-                    <Link to="/login"><p>Have an account already? Log-In here!</p></Link>
+                    <Link to="/login" className="text-blue-500 hover:underline"><p>Have an account already? Log-In here!</p></Link>
 
                 </div>
             </div>
