@@ -17,7 +17,7 @@ import CurrencyConverter from "./pages/CurrencyConverter";
 import AddFriends from "./pages/AddFriends";
 import ArticlesPage from "./pages/ArticlesPage";
 import PlanDisplay from "./pages/PlanDisplay";
-import Calculator from "./pages/Calculator";
+import Calculator from "./components/calculator";
 
 // this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
 // represents the page
