@@ -12,16 +12,34 @@ import NavBar from "./components/NavBar";
 import UserNavBar from "./components/UserNavBar";
 import Profile from "./pages/Profile";
 import { UserBudgets } from "./pages/UserBudgets";
-import PlanDisplay from "./pages/PlanDisplay";
+import LeaderBoard from "./pages/LeaderBoard";
+import CurrencyConverter from "./pages/CurrencyConverter";
+import AddFriends from "./pages/AddFriends";
 import ArticlesPage from "./pages/ArticlesPage";
+import PlanDisplay from "./pages/PlanDisplay";
+import Calculator from "./components/calculator";
 
 // this section represents all routes for webpage, the path means the path represented in the url and the element leads to a jsx file that 
 // represents the page
 
 function App() {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [auth, setAuth] = useState(() => {
+    const token = localStorage.getItem("authToken");
+    return token ? true : false;
+  });
 
-  const [auth, setAuth] = useState(false);
+  useEffect(() => {
+    if (auth) {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setAuth(false);
+      }
+    } else {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user_id");
+    }
+  }, [auth]);
 
   // logic was changed here but does not match the code to where it was passed to. so in login page its still being set to true. we can change this 
   // later 
@@ -43,6 +61,13 @@ function App() {
   //   }
   // }, [auth]);
 
+  const handleLogin = (user_id, token) => {
+    localStorage.setItem("user_id", user_id);
+    localStorage.setItem("authToken", token);
+    setAuth(true);
+    navigate("/dashboard");
+  };
+
   // this function is never invoked and would be conflicting logic in login page
 
   // const handleLogin = (user_id, token) => {
@@ -51,7 +76,6 @@ function App() {
   //   setAuth(true);
   //   navigate("/dashboard");
   // };
-
 
   // this function is also never invoked and conflicts logic 
 
@@ -62,26 +86,35 @@ function App() {
   //   navigate("/login");
   // };
 
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user_id");
+    setAuth(false);
+    navigate("/login");
+  };
+
   return (
     <>
-      {auth ? <UserNavBar /> : <NavBar />}
+      {auth ? <UserNavBar onLogout={handleLogout} /> : <NavBar />}
 
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login setAuth={setAuth}/>} />
-        <Route path="/create" element={<CreateAccount setAuth={setAuth}/>} />
+        <Route path="/login" element={<Login setAuth={handleLogin} />} />
+        <Route path="/create" element={<CreateAccount setAuth={handleLogin} />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route element={<PrivateRoute auth={auth} />}>
           <Route path="/dashboard/" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile setAuth={setAuth}/>} />
-          <Route path="/articles" element={<ArticlesPage/>} />
-          <Route path="/addfriends" element={<h1>This is the friend adder page</h1>} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/articles" element={<ArticlesPage />} />
+          <Route path="/addfriends" element={<AddFriends />} />
           <Route path="/mybudgets" element={<UserBudgets />} />
-          <Route path="/leader" element={<h1>This is the leaderboard page</h1>} />
+          <Route path="/leader" element={<LeaderBoard />} />
+          <Route path="/currency" element={<CurrencyConverter />} />
+          <Route path="/calculator" element={<Calculator />} />
           <Route path="/budgetdisplay/:budgetId" element={<PlanDisplay />} />
         </Route>
-        <Route path="*" element={<h1>Error page: implement later</h1>} />
+        <Route path="*" element={<h1>Error error page: implement later</h1>} />
       </Routes>
     </>
   );

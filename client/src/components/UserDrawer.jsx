@@ -81,6 +81,7 @@ export default function UserDrawer() {
     { name: "Add Friends", url: "/addfriends" },
     { name: "My Budgets", url: "/mybudgets" },
     { name: "Leaderboard", url: "/leader" },
+    { name: "Currency", url: "/currency" },
   ];
 
   const drawerBehavior = (url) => {
