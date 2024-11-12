@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { supabase } from '../config/supabase';
 
 export default function LeaderBoard() {
     const [activeView, setActiveView] = useState('global');
@@ -23,11 +23,28 @@ export default function LeaderBoard() {
 
     const fetchGlobalLeaderboard = async () => {
         try {
-            const response = await axios.get('http://localhost:8080/api/users/all');
-            const users = response.data.users;
+            const { data: users, error } = await supabase
+                .from('user_savings')
+                .select(`
+                    user_id,
+                    total_saved,
+                    savings_goal,
+                    users (
+                        username
+                    )
+                `)
+                .order('total_saved', { ascending: false });
 
-            // Users are already sorted and ranked on the server
-            setGlobalData(users);
+            if (error) throw error;
+
+            const transformedUsers = users.map((user, index) => ({
+                rank: index + 1,
+                username: user.users.username,
+                totalSaved: user.total_saved,
+                goal: user.savings_goal
+            }));
+
+            setGlobalData(transformedUsers);
         } catch (error) {
             console.error('Error fetching global leaderboard:', error);
             setGlobalData([]);
@@ -36,8 +53,61 @@ export default function LeaderBoard() {
 
     const fetchFriendsLeaderboard = async () => {
         try {
-            const response = await axios.get(`http://localhost:8080/api/friends/leaderboard/${userId}`);
-            setFriendsData(response.data.friends);
+            // First, get friends list with usernames
+            const { data: friends, error: friendsError } = await supabase
+                .from('friends')
+                .select(`
+                    friendship_id,
+                    friend_id,
+                    friend:users!friends_friend_id_fkey (
+                        username
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('status', 'accepted');
+
+            if (friendsError) {
+                console.error('Friends query error:', friendsError);
+                throw friendsError;
+            }
+
+            console.log('Raw friends data:', friends);
+
+            // Then, get savings data for these friends
+            const friendIds = friends.map(friend => friend.friend_id);
+            const { data: savingsData, error: savingsError } = await supabase
+                .from('user_savings')
+                .select('*')
+                .in('user_id', friendIds);
+
+            if (savingsError) {
+                console.error('Savings query error:', savingsError);
+                throw savingsError;
+            }
+
+            console.log('Raw savings data:', savingsData);
+
+            // Combine the data
+            const transformedFriends = friends
+                .map(friend => {
+                    const savings = savingsData?.find(s => s.user_id === friend.friend_id) || {
+                        total_saved: 0,
+                        savings_goal: 2000
+                    };
+                    return {
+                        username: friend.friend?.username || 'Unknown',
+                        totalSaved: savings.total_saved || 0,
+                        goal: savings.savings_goal || 2000
+                    };
+                })
+                .sort((a, b) => b.totalSaved - a.totalSaved)
+                .map((friend, index) => ({
+                    ...friend,
+                    rank: index + 1
+                }));
+
+            console.log('Transformed friends data:', transformedFriends);
+            setFriendsData(transformedFriends);
         } catch (error) {
             console.error('Error fetching friends leaderboard:', error);
             setFriendsData([]);

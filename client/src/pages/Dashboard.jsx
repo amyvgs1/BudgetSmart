@@ -5,11 +5,12 @@
 
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { supabase } from '../config/supabase';
 
 export default function Dashboard() {
     const location = useLocation();
     const navigate = useNavigate();
+    const [userName, setUserName] = useState('User');
     const [budgetOverview, setBudgetOverview] = useState({
         totalBudget: 0,
         spent: 0,
@@ -24,18 +25,45 @@ export default function Dashboard() {
     });
 
     useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const userId = sessionStorage.getItem("user_id");
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('first_name, last_name')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    const fullName = `${data.first_name} ${data.last_name}`;
+                    setUserName(fullName);
+                    sessionStorage.setItem("user_name", fullName);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                setUserName('User');
+            }
+        };
+
         const fetchUserSavings = async () => {
             try {
                 const userId = sessionStorage.getItem("user_id");
-                const response = await axios.get('http://localhost:8080/api/users/all');
-                const userData = response.data.users.find(user => user.user_id === parseInt(userId));
-                
-                if (userData) {
+                const { data, error } = await supabase
+                    .from('user_savings')
+                    .select('*, users!inner(*)')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
                     setBudgetOverview(prev => ({
                         ...prev,
-                        savingsGoal: userData.goal,
-                        savedAmount: userData.totalSaved,
-                        remaining: userData.goal - userData.totalSaved
+                        savingsGoal: data.savings_goal,
+                        savedAmount: data.total_saved,
+                        remaining: data.savings_goal - data.total_saved
                     }));
                 }
             } catch (error) {
@@ -43,6 +71,7 @@ export default function Dashboard() {
             }
         };
 
+        fetchUserData();
         fetchUserSavings();
     }, []);
 
@@ -64,7 +93,7 @@ export default function Dashboard() {
                 {/* Welcome Header */}
                 <div className="mb-8 text-center">
                     <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                        Welcome, {sessionStorage.getItem("user_name")}!
+                        Welcome, {userName}!
                     </h1>
                     <p className="text-gray-600">Here's your financial overview</p>
                 </div>
