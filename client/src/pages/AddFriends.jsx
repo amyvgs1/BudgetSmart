@@ -1,78 +1,361 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../config/supabase';
 
 export default function AddFriends() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('search');
-    const [pendingList, setPendingList] = useState(new Set()); // Track pending requests
+    const [users, setUsers] = useState([]);
+    const [pendingRequests, setPendingRequests] = useState({
+        received: [],
+        sent: []
+    });
+    const [currentFriends, setCurrentFriends] = useState([]);
+    const [mutualFriends, setMutualFriends] = useState({});
+    const userId = sessionStorage.getItem("user_id");
 
-    // Static data for demonstration
-    const sampleUsers = [
-        { id: 1, username: "sarah.mitchell", name: "Sarah Mitchell" },
-        { id: 2, username: "mike_wilson87", name: "Mike Wilson" },
-        { id: 3, username: "emily.brooks", name: "Emily Brooks" },
-        { id: 4, username: "alex_thompson", name: "Alex Thompson" },
-    ];
+    // Search users
+    const searchUsers = async () => {
+        try {
+            console.log('Searching for:', searchQuery);
+            
+            // More flexible search query
+            const { data, error } = await supabase
+                .from('users')
+                .select('user_id, username, first_name, last_name')
+                .or(`username.ilike.%${searchQuery}%, email.ilike.%${searchQuery}%, first_name.ilike.%${searchQuery}%, last_name.ilike.%${searchQuery}%`)
+                .neq('user_id', userId)
+                .limit(10);
 
-    const [pendingRequests, setPendingRequests] = useState([
-        { id: 1, username: "david.parker22", name: "David Parker", type: "received" },
-        { id: 2, username: "lisa_anderson", name: "Lisa Anderson", type: "sent" },
-        { id: 3, username: "chris.murphy89", name: "Chris Murphy", type: "received" },
-    ]);
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
 
-    const [currentFriends, setCurrentFriends] = useState([
-        { id: 1, username: "john.doe", name: "John Doe", since: "March 2024" },
-        { id: 2, username: "amy.smith", name: "Amy Smith", since: "February 2024" },
-        { id: 3, username: "robert_jones", name: "Robert Jones", since: "January 2024" },
-    ]);
+            console.log('Search results:', data);
 
-    // Handle add friend button
-    const handleAddFriend = (userId) => {
-        setPendingList(prev => new Set([...prev, userId]));
-        // Add to pending requests
-        const user = sampleUsers.find(u => u.id === userId);
-        setPendingRequests(prev => [...prev, {
-            id: userId,
-            username: user.username,
-            name: user.name,
-            type: "sent"
-        }]);
+            // Filter out existing friends and pending requests
+            const filteredUsers = data.filter(user => 
+                !currentFriends.some(friend => friend.user_id === user.user_id) &&
+                !pendingRequests.sent.some(req => req.friend_id === user.user_id) &&
+                !pendingRequests.received.some(req => req.user_id === user.user_id)
+            );
+
+            console.log('Filtered results:', filteredUsers);
+            setUsers(filteredUsers);
+
+        } catch (error) {
+            console.error('Error searching users:', error);
+            setUsers([]);
+        }
     };
 
-    // Handle accept friend request
-    const handleAcceptRequest = (requestId) => {
-        // Find the request
-        const request = pendingRequests.find(r => r.id === requestId);
-        // Add to friends
-        setCurrentFriends(prev => [...prev, {
-            id: requestId,
-            username: request.username,
-            name: request.name,
-            since: "Just now"
-        }]);
-        // Remove from pending
-        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    // Fetch friend requests
+    const fetchRequests = async () => {
+        try {
+            console.log('Fetching requests for user:', userId);
+            
+            // Fetch sent requests
+            const { data: sentData, error: sentError } = await supabase
+                .from('friends')
+                .select(`
+                    friendship_id,
+                    friend_id,
+                    users!friends_friend_id_fkey (
+                        username,
+                        first_name,
+                        last_name
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('status', 'pending');
+
+            // Fetch received requests
+            const { data: receivedData, error: receivedError } = await supabase
+                .from('friends')
+                .select(`
+                    friendship_id,
+                    user_id,
+                    users!friends_user_id_fkey (
+                        username,
+                        first_name,
+                        last_name
+                    )
+                `)
+                .eq('friend_id', userId)
+                .eq('status', 'pending');
+
+            console.log('Requests data:', { sent: sentData, received: receivedData });
+
+            if (sentError) throw sentError;
+            if (receivedError) throw receivedError;
+
+            setPendingRequests({
+                sent: sentData || [],
+                received: receivedData || []
+            });
+        } catch (error) {
+            console.error('Error in fetchRequests:', error);
+        }
     };
 
-    // Handle decline/remove friend
-    const handleRemoveRequest = (requestId) => {
-        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
-        setPendingList(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(requestId);
-            return newSet;
-        });
+    // Fetch current friends
+    const fetchFriends = async () => {
+        try {
+            console.log('Fetching friends for user:', userId);
+            
+            // Fetch friends where user is the sender
+            const { data: sentFriends, error: sentError } = await supabase
+                .from('friends')
+                .select(`
+                    friendship_id,
+                    friend_id,
+                    users!friends_friend_id_fkey (
+                        username,
+                        first_name,
+                        last_name
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('status', 'accepted');
+
+            // Fetch friends where user is the receiver
+            const { data: receivedFriends, error: receivedError } = await supabase
+                .from('friends')
+                .select(`
+                    friendship_id,
+                    user_id,
+                    users!friends_user_id_fkey (
+                        username,
+                        first_name,
+                        last_name
+                    )
+                `)
+                .eq('friend_id', userId)
+                .eq('status', 'accepted');
+
+            console.log('Friends data:', { sent: sentFriends, received: receivedFriends });
+
+            if (sentError) throw sentError;
+            if (receivedError) throw receivedError;
+
+            // Combine both lists
+            const allFriends = [
+                ...(sentFriends || []).map(friend => ({
+                    friendship_id: friend.friendship_id,
+                    friend_id: friend.friend_id,
+                    username: friend.users.username,
+                    first_name: friend.users.first_name,
+                    last_name: friend.users.last_name
+                })),
+                ...(receivedFriends || []).map(friend => ({
+                    friendship_id: friend.friendship_id,
+                    friend_id: friend.user_id,
+                    username: friend.users.username,
+                    first_name: friend.users.first_name,
+                    last_name: friend.users.last_name
+                }))
+            ];
+
+            console.log('Combined friends list:', allFriends);
+            setCurrentFriends(allFriends);
+        } catch (error) {
+            console.error('Error fetching friends:', error);
+        }
     };
 
-    // Handle remove friend
-    const handleRemoveFriend = (friendId) => {
-        setCurrentFriends(prev => prev.filter(f => f.id !== friendId));
+    // Send friend request with notification
+    const sendRequest = async (friendId, friendUsername) => {
+        try {
+            console.log('Starting friend request...', { userId, friendId });
+            
+            // Begin a transaction
+            const { data: friendData, error: friendError } = await supabase
+                .from('friends')
+                .insert([{
+                    user_id: userId,
+                    friend_id: friendId,
+                    status: 'pending'
+                }])
+                .select();
+
+            console.log('Friend request result:', { friendData, friendError });
+
+            if (friendError) {
+                console.error('Supabase friend request error:', friendError);
+                throw friendError;
+            }
+
+            try {
+                // Create notification for recipient
+                const { data: notifData, error: notifError } = await supabase
+                    .from('notifications')
+                    .insert([{
+                        user_id: friendId,
+                        type: 'friend_request',
+                        message: `${sessionStorage.getItem('username')} sent you a friend request`,
+                        related_id: userId
+                    }])
+                    .select();
+
+                console.log('Notification result:', { notifData, notifError });
+
+                if (notifError) {
+                    console.error('Supabase notification error:', notifError);
+                    // Don't throw here, just log the error
+                }
+            } catch (notifError) {
+                console.error('Error creating notification:', notifError);
+                // Continue execution even if notification fails
+            }
+
+            // Update UI
+            setUsers(users.filter(user => user.user_id !== friendId));
+            await fetchRequests();
+            
+            console.log('Friend request completed successfully');
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+        }
     };
 
-    // Filter users based on search query
-    const filteredUsers = sampleUsers.filter(user => 
-        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Accept friend request with notification
+    const acceptRequest = async (friendshipId, friendId, friendUsername) => {
+        try {
+            // Update friend request status
+            const { error: updateError } = await supabase
+                .from('friends')
+                .update({ status: 'accepted' })
+                .eq('friendship_id', friendshipId);
+
+            if (updateError) throw updateError;
+
+            // Create notification for the original sender
+            const { error: notifError } = await supabase
+                .from('notifications')
+                .insert([{
+                    user_id: friendId,
+                    type: 'friend_accepted',
+                    message: `${sessionStorage.getItem('username')} accepted your friend request`,
+                    related_id: userId
+                }]);
+
+            if (notifError) throw notifError;
+
+            // Refresh lists
+            await fetchRequests();
+            await fetchFriends();
+        } catch (error) {
+            console.error('Error accepting friend request:', error);
+        }
+    };
+
+    // Delete friend request
+    const deleteRequest = async (friendshipId, friendId, type) => {
+        try {
+            const { error } = await supabase
+                .from('friends')
+                .delete()
+                .eq('friendship_id', friendshipId);
+
+            if (error) throw error;
+
+            // Create notification if it's a rejection
+            if (type === 'reject') {
+                await supabase
+                    .from('notifications')
+                    .insert([{
+                        user_id: friendId,
+                        type: 'friend_rejected',
+                        message: `${sessionStorage.getItem('username')} declined your friend request`,
+                        related_id: userId
+                    }]);
+            }
+
+            await fetchRequests();
+        } catch (error) {
+            console.error('Error deleting friend request:', error);
+        }
+    };
+
+    // Get mutual friends
+    const getMutualFriends = async (targetUserId) => {
+        try {
+            // Get current user's friends
+            const { data: myFriends, error: myError } = await supabase
+                .from('friends')
+                .select('friend_id')
+                .eq('user_id', userId)
+                .eq('status', 'accepted');
+
+            if (myError) throw myError;
+
+            // Get target user's friends
+            const { data: theirFriends, error: theirError } = await supabase
+                .from('friends')
+                .select('friend_id')
+                .eq('user_id', targetUserId)
+                .eq('status', 'accepted');
+
+            if (theirError) throw theirError;
+
+            // Find mutual friends
+            const myFriendIds = myFriends.map(f => f.friend_id);
+            const theirFriendIds = theirFriends.map(f => f.friend_id);
+            const mutual = myFriendIds.filter(id => theirFriendIds.includes(id));
+
+            // Get mutual friends' details
+            if (mutual.length > 0) {
+                const { data: mutualDetails, error: detailsError } = await supabase
+                    .from('users')
+                    .select('user_id, username, first_name, last_name')
+                    .in('user_id', mutual);
+
+                if (detailsError) throw detailsError;
+
+                setMutualFriends(prev => ({
+                    ...prev,
+                    [targetUserId]: mutualDetails
+                }));
+            }
+        } catch (error) {
+            console.error('Error getting mutual friends:', error);
+        }
+    };
+
+    // Add to useEffect for search results
+    useEffect(() => {
+        if (users.length > 0) {
+            users.forEach(user => getMutualFriends(user.user_id));
+        }
+    }, [users]);
+
+    // Search debounce effect
+    useEffect(() => {
+        const delayDebounce = setTimeout(() => {
+            if (searchQuery.length >= 1) {  // Changed from 3 to 1
+                searchUsers();
+            } else {
+                setUsers([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounce);
+    }, [searchQuery]);
+
+    // Tab change effect
+    useEffect(() => {
+        console.log('Tab changed to:', activeTab);
+        if (activeTab === 'requests') {
+            fetchRequests();
+        }
+    }, [activeTab]);
+
+    // Add useEffect to fetch friends when tab changes
+    useEffect(() => {
+        if (activeTab === 'friends') {
+            fetchFriends();
+        }
+    }, [activeTab]);
 
     return (
         <div className="min-h-screen bg-gray-100 pt-20 font-Outfit">
@@ -121,89 +404,126 @@ export default function AddFriends() {
                     {/* Search Section */}
                     {activeTab === 'search' && (
                         <div className="space-y-4">
-                            {filteredUsers.map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search users..."
+                                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            {users && users.map(user => (
+                                <div key={user.user_id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                                     <div>
-                                        <p className="font-semibold">{user.name}</p>
+                                        <p className="font-semibold">{user.first_name} {user.last_name}</p>
                                         <p className="text-gray-600 text-sm">@{user.username}</p>
                                     </div>
-                                    {pendingList.has(user.id) ? (
-                                        <button 
-                                            className="px-4 py-2 bg-gray-200 text-gray-600 rounded-full transition-all duration-200"
-                                            disabled
-                                        >
-                                            Pending
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            onClick={() => handleAddFriend(user.id)}
-                                            className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200"
-                                        >
-                                            Add Friend
-                                        </button>
-                                    )}
+                                    <button 
+                                        onClick={() => sendRequest(user.user_id, user.username)}
+                                        className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+                                    >
+                                        Add Friend
+                                    </button>
                                 </div>
                             ))}
+                            {searchQuery && users.length === 0 && (
+                                <p className="text-center text-gray-500">No users found</p>
+                            )}
                         </div>
                     )}
 
                     {/* Requests Section */}
                     {activeTab === 'requests' && (
-                        <div className="space-y-4">
-                            {pendingRequests.map(request => (
-                                <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                                    <div>
-                                        <p className="font-semibold">{request.name}</p>
-                                        <p className="text-gray-600 text-sm">@{request.username}</p>
-                                        <p className="text-sm text-blue-500">{request.type === 'received' ? 'Wants to be your friend' : 'Request sent'}</p>
-                                    </div>
-                                    {request.type === 'received' && (
-                                        <div className="space-x-2">
+                        <div className="space-y-6">
+                            {/* Received Requests Section */}
+                            <div>
+                                <h3 className="text-xl font-semibold mb-4">Received Requests</h3>
+                                {pendingRequests.received && pendingRequests.received.length > 0 ? (
+                                    pendingRequests.received.map(request => (
+                                        <div key={request.friendship_id} className="flex items-center justify-between p-4 border rounded-lg mb-2">
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {request.users.first_name} {request.users.last_name}
+                                                </p>
+                                                <p className="text-gray-600 text-sm">
+                                                    @{request.users.username}
+                                                </p>
+                                            </div>
+                                            <div className="space-x-2">
+                                                <button 
+                                                    onClick={() => acceptRequest(request.friendship_id, request.user_id, request.users.username)}
+                                                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button 
+                                                    onClick={() => deleteRequest(request.friendship_id, request.user_id, 'reject')}
+                                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500">No pending requests</p>
+                                )}
+                            </div>
+
+                            {/* Sent Requests Section */}
+                            <div>
+                                <h3 className="text-xl font-semibold mb-4">Sent Requests</h3>
+                                {pendingRequests.sent && pendingRequests.sent.length > 0 ? (
+                                    pendingRequests.sent.map(request => (
+                                        <div key={request.friendship_id} className="flex items-center justify-between p-4 border rounded-lg mb-2">
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {request.users.first_name} {request.users.last_name}
+                                                </p>
+                                                <p className="text-gray-600 text-sm">
+                                                    @{request.users.username}
+                                                </p>
+                                            </div>
                                             <button 
-                                                onClick={() => handleAcceptRequest(request.id)}
-                                                className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200"
+                                                onClick={() => deleteRequest(request.friendship_id, request.friend_id, 'cancel')}
+                                                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
                                             >
-                                                Accept
-                                            </button>
-                                            <button 
-                                                onClick={() => handleRemoveRequest(request.id)}
-                                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-all duration-200"
-                                            >
-                                                Decline
+                                                Cancel Request
                                             </button>
                                         </div>
-                                    )}
-                                    {request.type === 'sent' && (
-                                        <button 
-                                            onClick={() => handleRemoveRequest(request.id)}
-                                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-all duration-200"
-                                        >
-                                            Cancel
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500">No sent requests</p>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {/* Friends Section */}
                     {activeTab === 'friends' && (
                         <div className="space-y-4">
-                            {currentFriends.map(friend => (
-                                <div key={friend.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                                    <div>
-                                        <p className="font-semibold">{friend.name}</p>
-                                        <p className="text-gray-600 text-sm">@{friend.username}</p>
-                                        <p className="text-sm text-gray-500">Friends since {friend.since}</p>
+                            <h3 className="text-xl font-semibold mb-4">My Friends</h3>
+                            {currentFriends.length > 0 ? (
+                                currentFriends.map(friend => (
+                                    <div key={friend.friendship_id} className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div>
+                                            <p className="font-semibold">
+                                                {friend.first_name} {friend.last_name}
+                                            </p>
+                                            <p className="text-gray-600 text-sm">
+                                                @{friend.username}
+                                            </p>
+                                        </div>
+                                        <button 
+                                            onClick={() => deleteRequest(friend.friendship_id, friend.friend_id, 'remove')}
+                                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                        >
+                                            Remove Friend
+                                        </button>
                                     </div>
-                                    <button 
-                                        onClick={() => handleRemoveFriend(friend.id)}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-all duration-200"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                <p className="text-gray-500">No friends yet</p>
+                            )}
                         </div>
                     )}
                 </div>

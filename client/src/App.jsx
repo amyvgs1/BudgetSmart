@@ -12,7 +12,7 @@ import NavBar from "./components/NavBar";
 import UserNavBar from "./components/UserNavBar";
 import Profile from "./pages/Profile";
 import { UserBudgets } from "./pages/UserBudgets";
-import LeaderBoard from "./pages/LeaderBoard";
+import LeaderBoard from "./pages/Leaderboard";
 import CurrencyConverter from "./pages/CurrencyConverter";
 import AddFriends from "./pages/AddFriends";
 import ArticlesPage from "./pages/ArticlesPage";

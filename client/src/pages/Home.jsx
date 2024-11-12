@@ -11,11 +11,10 @@ export default function Home() {
                 <div className=" text-center">
                     <span className=" font-Outfit text-7xl font-bold"><h1>Where Budgeting Meets Efficiency</h1></span>
                     <p className="font-Outfit text-2xl">We get it. Budgeting can be hard, let us help!</p>
-                    <div class="relative mt-10">
-                        {/* <input type="email" class="w-full bg-transparent placeholder:text-black text-black text-sm border border-slate-200 rounded-md pl-3 pr-16 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow" placeholder="Email Address" /> */}
+                    <div className="relative mt-10">
                         <Link to='/create'>
                             <button
-                                class="w-50 h-10 rounded bg-slate-800 py-1 px-2.5 border border-transparent text-center text-md text-white transition-all shadow-sm hover:shadow focus:bg-slate-700 focus:shadow-none active:bg-slate-700 hover:bg-slate-700 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
+                                className="w-50 h-10 rounded bg-slate-800 py-1 px-2.5 border border-transparent text-center text-md text-white transition-all shadow-sm hover:shadow focus:bg-slate-700 focus:shadow-none active:bg-slate-700 hover:bg-slate-700 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
                                 type="button"
                             >
                                 Get Started

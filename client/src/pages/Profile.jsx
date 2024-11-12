@@ -1,165 +1,143 @@
-// things to implement:
-// 1. user change email and password
-// 2. user can log out
-
-import axios from "axios";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"
+import moneyback from "../assets/moneyback2.png";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from '../config/supabase';
 
-export default function Profile(props) {
-    // obtain user id 
-    const user_id = sessionStorage.getItem("user_id");
-
-
-    // identify if error message
-    const [isError, setIsError] = useState(false);
-
+export default function CreateAccount() {
+    const inputStyle = 'appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white';
 
     const navigate = useNavigate();
-    const [passwordDisable, setPasswordDisable] = useState(true);
-    const [emailDisable, setEmailDisable] = useState(true);
 
-    // values for password change
-    const[newPass, setNewPass] = useState("");
-    const [rePass, setRePass] = useState("")
-
-    //values for email change
-    const [newEmail, setNewEmail] = useState("");
-    const [reEmail, setReEmail] = useState("");
-
-    // message for succesful changes 
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [rePass, setRePass] = useState("");
     const [message, setMessage] = useState("");
 
-
-    // function for changing password
-    const changePass = async(e) => {
+    const createAccount = async (e) => {
         e.preventDefault();
 
-        if(newPass !== rePass){
-            setMessage("Please ensure that new password and retyped password match");
-            setIsError(true);
-            return;
+        if (password !== rePass) {
+            return setMessage("Passwords do not match, please retype.");
         }
 
+        try {
+            // Check if user already exists in users table
+            const { data: existingUser } = await supabase
+                .from('users')
+                .select('email')
+                .eq('email', email)
+                .single();
 
-        try{
-            const res = await axios.post("http://localhost:8080/api/changepass", {newPass:newPass, user_id:user_id});
-            console.log(res.data.message);
+            if (existingUser) {
+                setMessage("An account with this email already exists.");
+                return;
+            }
 
-            // proper ui changes
-            setIsError(false);
-            setMessage("Successful Password Change");
-            setNewPass("");
-            setRePass("");
+            // Create an authenticated user
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: email,
+                password: password,
+            });
 
-        } catch (err){
-            console.error(err);
+            if (authError) throw authError;
+
+            if (!authData.user?.id) {
+                throw new Error("Failed to create user account");
+            }
+
+            // Insert user details into custom users table
+            const { error: userError } = await supabase
+                .from('users')
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        first_name: firstName,
+                        last_name: lastName,
+                        username: username,
+                        email: email,
+                        password: password
+                    }
+                ]);
+
+            if (userError) {
+                console.error('User table error:', userError);
+                await supabase.auth.admin.deleteUser(authData.user.id); // Clean up auth user if insertion fails
+                throw userError;
+            }
+
+            // Create initial entry in user_savings table
+            const { error: savingsError } = await supabase
+                .from('user_savings')
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        total_saved: 0,
+                        savings_goal: 2000
+                    }
+                ]);
+
+            if (savingsError) {
+                console.error('Savings table error:', savingsError);
+                await supabase.auth.admin.deleteUser(authData.user.id); // Clean up auth user if savings creation fails
+                throw savingsError;
+            }
+
+            setMessage("Account created successfully!");
+            navigate("/login");
+
+        } catch (error) {
+            console.error('Error:', error);
+            setMessage(error.message || "Failed to create account");
         }
-    }
-
-
-    // function for changing email
-    const changeEmail = async(e) => {
-        e.preventDefault();
-
-        if(newEmail !== reEmail){
-            setMessage("Please Ensure that Emails match");
-            setIsError(true);
-            return;
-        }
-
-        try{
-            const res = await axios.post("http://localhost:8080/api/changeemail", {newEmail: newEmail, user_id: user_id});
-
-            // ui changes
-            setIsError(false);
-            setMessage("Successful Email Change");
-            setNewEmail("");
-            setReEmail("");
-
-        } catch (err){
-            console.error(err);
-        }
-    }
-    
-
-    const disablePass = () => {
-        setPasswordDisable(!passwordDisable);
-    };
-
-    const disableEmail = () => {
-        setEmailDisable(!emailDisable);
-    };
-
-    const logout = () => {
-        console.log("works");
-
-        // get rid of all stored session values when logging out
-        sessionStorage.removeItem("user_id");
-        sessionStorage.removeItem("user_name");
-
-        props.setAuth(false);
-        navigate('/login');
     };
 
     return (
-        <>
-            <div className="flex flex-col items-center justify-center  w-screen h-screen font-Outfit mt-40 mb-20">
-                <div className="flex flex-col justify-center items-center mb-5 text-5xl font-bold mt-10">
-                    <h1>Profile/Settings</h1>
-                    <span className={`text-sm font-medium text-${isError ? "red-500" : "green-500"}`}><p>{message}</p></span>
-                </div>
+        <div className="flex items-center justify-center w-full h-screen" style={{ backgroundImage: `url(${moneyback})` }}>
+            <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-8 mt-10">
+                <span className="font-Outfit text-4xl font-semibold"><h1>Create Account</h1></span>
+                <p>Say hello to budgeting the right way</p>
 
-                <div className="flex flex-row space-x-5 mb-5">
-                    <span className="text-3xl font-semibold">
-                        <h1>Change Password</h1>
-                    </span>
+                <span className="text-red-500 font-semibold"><p>{message}</p></span>
 
-                    <button onClick={disablePass} className="bg-blue-700 rounded-lg text-white w-40 hover:bg-blue-500">Change</button>
-                </div>
+                <form className="mt-5 grid grid-cols-4 gap-4 mb-3">
+                    <div className="col-span-2">
+                        <p>First Name</p>
+                        <input value={firstName} className={inputStyle} placeholder="Jane" onChange={(e) => setFirstName(e.target.value)} />
+                    </div>
 
+                    <div className="col-span-2">
+                        <p>Last Name</p>
+                        <input value={lastName} className={inputStyle} placeholder="Doe" onChange={(e) => setLastName(e.target.value)} />
+                    </div>
 
-                <div style={passwordDisable ? {pointerEvents : "none", opacity:"0.35"} :{}} className="bg-white w-1/2 h-1/3 mb-20 p-5 shadow-lg rounded-lg">
-                    <form className="w-full flex flex-col justify-center items-center">
-                        <span className="l"><p>New Password:</p></span>
-                        <input value={newPass} onChange={(e) => setNewPass(e.target.value)} className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"></input>
+                    <div className="col-span-4">
+                        <p>Email</p>
+                        <input value={email} className={inputStyle} placeholder="example@email.com" onChange={(e) => setEmail(e.target.value)} />
+                    </div>
 
-                        <p>Retype New Password:</p>
-                        <input value={rePass} onChange={(e) => setRePass(e.target.value)} className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"/>
+                    <div className="col-span-4">
+                        <p>Username</p>
+                        <input value={username} className={inputStyle} placeholder="Username" onChange={(e) => setUsername(e.target.value)} />
+                    </div>
 
-                        <button type="button" className="bg-blue-700 rounded-lg w-10 h-10 text-white" onClick={changePass}>Ok!</button>
-                    </form>
-                </div>
+                    <div className="col-span-2">
+                        <p>Password</p>
+                        <input type="password" value={password} className={inputStyle} placeholder="Password" onChange={(e) => setPassword(e.target.value)} />
+                    </div>
 
-                <div className="flex flex-row space-x-5 mb-5">
-                    <span className="text-3xl font-semibold">
-                        <h1>Change Email:</h1>
-                    </span>
+                    <div className="col-span-2">
+                        <p>Retype Password</p>
+                        <input type="password" value={rePass} className={inputStyle} placeholder="Retype Password" onChange={(e) => setRePass(e.target.value)} />
+                    </div>
 
-                    <button onClick={disableEmail} className="bg-blue-700 rounded-lg text-white w-40 hover:bg-blue-500">Change</button>
-                </div>
+                    <button type="button" onClick={createAccount} className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Submit</button>
+                </form>
 
-                <div style={emailDisable ? { pointerEvents: "none", opacity: "0.35" } : {}} className="bg-white w-1/2 h-1/3 mb-5 p-5 shadow-lg rounded-lg">
-                    <form className="w-full flex flex-col justify-center items-center">
-                        <p>New Email:</p>
-                        <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"></input>
-
-                        <p>Retype New Password:</p>
-                        <input value={reEmail} onChange={(e) => setReEmail(e.target.value)} className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white" />
-
-                        <button className="bg-blue-700 rounded-lg w-10 h-10 text-white" onClick={changeEmail}>Ok!</button>
-                    </form>
-                </div>
-
-
-                <button onClick={logout} className="flex justify-center items-center w-1/4 h-10 bg-orange-500 hover:bg-orange-300 text-center mt-10 rounded-lg font-Outfit text-2xl">
-                     Logout
-                </button>
-
-
-
+                <Link to="/login" className="text-blue-500 hover:underline"><p>Have an account already? Log-In here!</p></Link>
             </div>
-        </>
-    )
-
+        </div>
+    );
 }
