@@ -49,7 +49,7 @@ app.post('/create', (req, res) =>{
             return res.status(500).json({message:"Database Error"});
         }
         console.log(row);
-        return res.status(200).json({ message: 'account created' });
+        return res.status(200).json({ message: 'account created', user_name:`${firstName} ${lastName}`, id: this.lastID});
     });
 });
 
@@ -398,3 +398,30 @@ app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });
 
+
+// resonsible for changing password
+app.post('/api/changepass', (req, res) => {
+    const {newPass, user_id} = req.body;
+
+    db.run(`UPDATE users SET password = ? WHERE user_id = ?`, [newPass, user_id], (err, row) => {
+        if(err){
+            console.error('Database Error: ', err.message);
+            return res.status(500).json({error: "Password Change Failed"});
+        }
+        return res.status(200).json({message: "Password Change Successful"})
+    });
+});
+
+//responsible for changing email
+app.post('/api/changeemail', (req, res) => {
+    const {newEmail, user_id} = req.body;
+
+    db.run(`UPDATE users SET email = ? WHERE user_id = ?`, [newEmail, user_id], (err, row) => {
+        if(err) {
+            console.error("Database Error: ", err.message);
+            return res.status(500).json({error: "Email Change Failed"});
+        }
+
+        return res.status(200).json({message: "Password Chnage Successful"});
+    });
+});

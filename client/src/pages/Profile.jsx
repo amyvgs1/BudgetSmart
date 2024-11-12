@@ -1,184 +1,142 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import moneyback from "../assets/moneyback2.png";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from '../config/supabase';
 
-export default function Profile() {
+export default function CreateAccount() {
+    const inputStyle = 'appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white';
+
     const navigate = useNavigate();
-    const [message, setMessage] = useState('');
-    
-    // Form states
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [newEmail, setNewEmail] = useState('');
-    const [confirmEmail, setConfirmEmail] = useState('');
 
-    const handleSignOut = async () => {
-        try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            
-            // Clear session storage
-            sessionStorage.clear();
-            navigate('/login');
-        } catch (error) {
-            console.error('Error signing out:', error);
-            setMessage('Error signing out');
-        }
-    };
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [rePass, setRePass] = useState("");
+    const [message, setMessage] = useState("");
 
-    const handlePasswordChange = async (e) => {
+    const createAccount = async (e) => {
         e.preventDefault();
-        
-        if (newPassword !== confirmPassword) {
-            setMessage('Passwords do not match');
-            return;
+
+        if (password !== rePass) {
+            return setMessage("Passwords do not match, please retype.");
         }
 
         try {
-            // First update auth
-            const { error: authError } = await supabase.auth.updateUser({
-                password: newPassword
+            // Check if user already exists in users table
+            const { data: existingUser } = await supabase
+                .from('users')
+                .select('email')
+                .eq('email', email)
+                .single();
+
+            if (existingUser) {
+                setMessage("An account with this email already exists.");
+                return;
+            }
+
+            // Create an authenticated user
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: email,
+                password: password,
             });
+
             if (authError) throw authError;
 
-            // Then update the users table
-            const { data: { user } } = await supabase.auth.getUser();
-            const { error: dbError } = await supabase
+            if (!authData.user?.id) {
+                throw new Error("Failed to create user account");
+            }
+
+            // Insert user details into custom users table
+            const { error: userError } = await supabase
                 .from('users')
-                .update({ password: newPassword })
-                .eq('user_id', user.id);
-            
-            if (dbError) throw dbError;
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        first_name: firstName,
+                        last_name: lastName,
+                        username: username,
+                        email: email,
+                        password: password
+                    }
+                ]);
 
-            setMessage('Password updated successfully! Signing out...');
-            setTimeout(() => {
-                handleSignOut();
-            }, 2000);
+            if (userError) {
+                console.error('User table error:', userError);
+                await supabase.auth.admin.deleteUser(authData.user.id); // Clean up auth user if insertion fails
+                throw userError;
+            }
+
+            // Create initial entry in user_savings table
+            const { error: savingsError } = await supabase
+                .from('user_savings')
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        total_saved: 0,
+                        savings_goal: 2000
+                    }
+                ]);
+
+            if (savingsError) {
+                console.error('Savings table error:', savingsError);
+                await supabase.auth.admin.deleteUser(authData.user.id); // Clean up auth user if savings creation fails
+                throw savingsError;
+            }
+
+            setMessage("Account created successfully!");
+            navigate("/login");
+
         } catch (error) {
-            setMessage(error.message);
-        }
-    };
-
-    const handleEmailChange = async (e) => {
-        e.preventDefault();
-        
-        if (newEmail !== confirmEmail) {
-            setMessage('Emails do not match');
-            return;
-        }
-
-        try {
-            // Get current user
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // Force update the auth email using admin API
-            const { error: adminError } = await supabase.auth.admin.updateUserById(
-                user.id,
-                { email: newEmail, email_confirm: true }
-            );
-            if (adminError) throw adminError;
-
-            // Update the users table
-            const { error: dbError } = await supabase
-                .from('users')
-                .update({ email: newEmail })
-                .eq('user_id', user.id);
-                
-            if (dbError) throw dbError;
-
-            setMessage('Email updated successfully! Please sign in with your new email.');
-            setTimeout(() => {
-                handleSignOut();
-            }, 2000);
-        } catch (error) {
-            setMessage(error.message);
+            console.error('Error:', error);
+            setMessage(error.message || "Failed to create account");
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-20 font-Outfit">
-            <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
-                <h1 className="text-3xl font-bold text-center mb-8">Profile Settings</h1>
-                
-                {message && (
-                    <div className="mb-4 p-3 rounded bg-blue-100 text-blue-800 text-center">
-                        {message}
+        <div className="flex items-center justify-center w-full h-screen" style={{ backgroundImage: `url(${moneyback})` }}>
+            <div className="w-50 bg-white justify-center text-center rounded-md shadow-lg p-8 mt-10">
+                <span className="font-Outfit text-4xl font-semibold"><h1>Create Account</h1></span>
+                <p>Say hello to budgeting the right way</p>
+
+                <span className="text-red-500 font-semibold"><p>{message}</p></span>
+
+                <form className="mt-5 grid grid-cols-4 gap-4 mb-3">
+                    <div className="col-span-2">
+                        <p>First Name</p>
+                        <input value={firstName} className={inputStyle} placeholder="Jane" onChange={(e) => setFirstName(e.target.value)} />
                     </div>
-                )}
 
-                {/* Change Password Section */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-                    <form onSubmit={handlePasswordChange} className="space-y-4">
-                        <div>
-                            <label className="block text-gray-700 mb-2">New Password</label>
-                            <input
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-gray-700 mb-2">Confirm New Password</label>
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                required
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors"
-                        >
-                            Update Password
-                        </button>
-                    </form>
-                </div>
+                    <div className="col-span-2">
+                        <p>Last Name</p>
+                        <input value={lastName} className={inputStyle} placeholder="Doe" onChange={(e) => setLastName(e.target.value)} />
+                    </div>
 
-                {/* Change Email Section */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold mb-4">Change Email</h2>
-                    <form onSubmit={handleEmailChange} className="space-y-4">
-                        <div>
-                            <label className="block text-gray-700 mb-2">New Email</label>
-                            <input
-                                type="email"
-                                value={newEmail}
-                                onChange={(e) => setNewEmail(e.target.value)}
-                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-gray-700 mb-2">Confirm New Email</label>
-                            <input
-                                type="email"
-                                value={confirmEmail}
-                                onChange={(e) => setConfirmEmail(e.target.value)}
-                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                required
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors"
-                        >
-                            Update Email
-                        </button>
-                    </form>
-                </div>
+                    <div className="col-span-4">
+                        <p>Email</p>
+                        <input value={email} className={inputStyle} placeholder="example@email.com" onChange={(e) => setEmail(e.target.value)} />
+                    </div>
 
-                {/* Sign Out Button */}
-                <button
-                    onClick={handleSignOut}
-                    className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600 transition-colors"
-                >
-                    Sign Out
-                </button>
+                    <div className="col-span-4">
+                        <p>Username</p>
+                        <input value={username} className={inputStyle} placeholder="Username" onChange={(e) => setUsername(e.target.value)} />
+                    </div>
+
+                    <div className="col-span-2">
+                        <p>Password</p>
+                        <input type="password" value={password} className={inputStyle} placeholder="Password" onChange={(e) => setPassword(e.target.value)} />
+                    </div>
+
+                    <div className="col-span-2">
+                        <p>Retype Password</p>
+                        <input type="password" value={rePass} className={inputStyle} placeholder="Retype Password" onChange={(e) => setRePass(e.target.value)} />
+                    </div>
+
+                    <button type="button" onClick={createAccount} className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Submit</button>
+                </form>
+
+                <Link to="/login" className="text-blue-500 hover:underline"><p>Have an account already? Log-In here!</p></Link>
             </div>
         </div>
     );
