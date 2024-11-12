@@ -4,25 +4,47 @@
 // the data will persist. you can use the stored user_id for future queries now.
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function Dashboard() {
     const location = useLocation();
     const navigate = useNavigate();
-    
-    // Sample budget data
-    const budgetOverview = {
-        totalBudget: 3000,
-        spent: 1800,
-        remaining: 1200,
-        savingsGoal: 500,
-        savedAmount: 350,
+    const [budgetOverview, setBudgetOverview] = useState({
+        totalBudget: 0,
+        spent: 0,
+        remaining: 0,
+        savingsGoal: 0,
+        savedAmount: 0,
         recentTransactions: [
             { id: 1, description: "Grocery Shopping", amount: -120, date: "2024-03-15" },
             { id: 2, description: "Salary Deposit", amount: 2500, date: "2024-03-14" },
             { id: 3, description: "Netflix Subscription", amount: -15, date: "2024-03-13" },
         ]
-    };
+    });
+
+    useEffect(() => {
+        const fetchUserSavings = async () => {
+            try {
+                const userId = sessionStorage.getItem("user_id");
+                const response = await axios.get('http://localhost:8080/api/users/all');
+                const userData = response.data.users.find(user => user.user_id === parseInt(userId));
+                
+                if (userData) {
+                    setBudgetOverview(prev => ({
+                        ...prev,
+                        savingsGoal: userData.goal,
+                        savedAmount: userData.totalSaved,
+                        remaining: userData.goal - userData.totalSaved
+                    }));
+                }
+            } catch (error) {
+                console.error('Error fetching user savings:', error);
+            }
+        };
+
+        fetchUserSavings();
+    }, []);
 
     const dashboardItems = [
         { name: "My Budgets", url: "/mybudgets", bgColor: "bg-blue-400", icon: "💰" },
@@ -34,7 +56,6 @@ export default function Dashboard() {
     ];
 
     // Calculate percentages for progress bars
-    const spentPercentage = (budgetOverview.spent / budgetOverview.totalBudget) * 100;
     const savingsPercentage = (budgetOverview.savedAmount / budgetOverview.savingsGoal) * 100;
 
     return (
@@ -51,32 +72,12 @@ export default function Dashboard() {
                 {/* Budget at a Glance Section */}
                 <div className="max-w-6xl mx-auto mb-12">
                     <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Budget at a Glance</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Savings Overview</h2>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            {/* Monthly Budget Progress */}
-                            <div className="bg-blue-50 rounded-lg p-4">
-                                <h3 className="text-lg font-semibold text-blue-800 mb-2">Monthly Budget</h3>
-                                <div className="mb-2">
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span>Spent: ${budgetOverview.spent}</span>
-                                        <span>Total: ${budgetOverview.totalBudget}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                        <div 
-                                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-                                            style={{ width: `${spentPercentage}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                                <p className="text-blue-600 font-semibold">
-                                    ${budgetOverview.remaining} remaining
-                                </p>
-                            </div>
-
-                            {/* Savings Goal */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            {/* Savings Progress */}
                             <div className="bg-green-50 rounded-lg p-4">
-                                <h3 className="text-lg font-semibold text-green-800 mb-2">Savings Goal</h3>
+                                <h3 className="text-lg font-semibold text-green-800 mb-2">Savings Progress</h3>
                                 <div className="mb-2">
                                     <div className="flex justify-between text-sm mb-1">
                                         <span>Saved: ${budgetOverview.savedAmount}</span>
@@ -85,12 +86,12 @@ export default function Dashboard() {
                                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                                         <div 
                                             className="bg-green-600 h-2.5 rounded-full transition-all duration-500"
-                                            style={{ width: `${savingsPercentage}%` }}
+                                            style={{ width: `${Math.min(savingsPercentage, 100)}%` }}
                                         ></div>
                                     </div>
                                 </div>
                                 <p className="text-green-600 font-semibold">
-                                    ${budgetOverview.savingsGoal - budgetOverview.savedAmount} to go
+                                    ${budgetOverview.remaining} to go
                                 </p>
                             </div>
 
