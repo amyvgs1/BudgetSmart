@@ -2,7 +2,7 @@
 import { useState } from "react";
 import moneyback from "../assets/moneyback2.png";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { supabase } from '../config/supabase'
 
 export default function CreateAccount(props) {
     const inputStyle = 'appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white';
@@ -18,34 +18,83 @@ export default function CreateAccount(props) {
     const [message, setMessage] = useState("");
 
     const createAccount = async (e) => {
-
-        if(password !== rePass){
-            return setMessage("Passwords do not match, please retype.");
-        }
-
-        try{
-            const res = await axios.post('http://localhost:8080/create', 
-                {
-                    firstName:firstName,
-                    lastName:lastName,
-                    username:username,
-                    email: email,
-                    password: password
-                }
-            );
-
-            props.setAuth(true);
-            navigate("/dashboard");
-
-        } catch (err){
-            if(err.response){
-                setMessage(err.response.data.message)
-            } 
-            //else {
-            //     setMessage("all good") // error
-            // }
-        }
         e.preventDefault()
+        
+        if (password !== rePass) {
+            return setMessage("Passwords do not match, please retype.")
+        }
+
+        try {
+            // 1. Check if user exists in custom users table
+            const { data: existingUser } = await supabase
+                .from('users')
+                .select('email')
+                .eq('email', email)
+                .single();
+
+            if (existingUser) {
+                setMessage("An account with this email already exists.");
+                return;
+            }
+
+            // 2. Create auth user
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: email,
+                password: password,
+            });
+
+            if (authError) throw authError;
+
+            if (!authData.user?.id) {
+                throw new Error("Failed to create user account");
+            }
+
+            // 3. Insert into custom users table
+            const { error: userError } = await supabase
+                .from('users')
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        first_name: firstName,
+                        last_name: lastName,
+                        username: username,
+                        email: email,
+                        password: password
+                    }
+                ]);
+
+            if (userError) {
+                console.error('User table error:', userError);
+                // If custom table insert fails, we should clean up the auth user
+                await supabase.auth.admin.deleteUser(authData.user.id);
+                throw userError;
+            }
+
+            // 4. Create initial user_savings entry
+            const { error: savingsError } = await supabase
+                .from('user_savings')
+                .insert([
+                    {
+                        user_id: authData.user.id,
+                        total_saved: 0,
+                        savings_goal: 2000
+                    }
+                ]);
+
+            if (savingsError) {
+                console.error('Savings table error:', savingsError);
+                // Clean up if savings creation fails
+                await supabase.auth.admin.deleteUser(authData.user.id);
+                throw savingsError;
+            }
+
+            setMessage("Account created successfully!");
+            navigate("/login");
+
+        } catch (error) {
+            console.error('Error:', error);
+            setMessage(error.message || "Failed to create account");
+        }
     }
 
 

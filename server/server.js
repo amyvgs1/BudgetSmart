@@ -4,7 +4,10 @@ const app = express();
 const { initDatabase } = require('./db/db');
 
 const corsOptions = {
-    origin : ["http://localhost:5173"]
+    origin: [
+        "http://localhost:5173",
+        "https://budgetsmart.us"
+    ]
 }
 
 // initialize database with exported function
@@ -390,7 +393,8 @@ app.get('/api/friends/leaderboard/:userId', (req, res) => {
     });
 });
 
-app.listen(8080, () => {
-    console.log("Server started on port 8080");
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
 });
 

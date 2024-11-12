@@ -14,6 +14,7 @@ import moneyback from "../assets/moneyback2.png";
 import { Link, useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { useState } from "react";
+import { supabase } from '../config/supabase'
 
 export default function Login(props){
     const navigate = useNavigate();
@@ -28,28 +29,23 @@ export default function Login(props){
         e.preventDefault()
 
         try{
-            const res = await axios.post('http://localhost:8080/login', {
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: pass
-            });
+            })
 
-  
+            if (error) throw error
 
-            setMessage('');
-            props.setAuth(true);
-
-            // store user id for future queries using session storage
-            sessionStorage.setItem('user_id', res.data.id);
-            sessionStorage.setItem('user_name', res.data.name);
+            // Store user session
+            sessionStorage.setItem('user_id', data.user.id)
+            sessionStorage.setItem('user_name', `${data.user.user_metadata.first_name} ${data.user.user_metadata.last_name}`)
             
-            navigate('/dashboard', {state : {id: res.data.id, name: res.data.name}})
+            props.setAuth(true)
+            navigate('/dashboard')
 
         } catch(err) {
-            if (err.response){
-                setMessage(err.response.data.message);
-            } else{
-                setMessage('An error occured during login')
-            }
+            console.error('Error:', err.message);
+            setMessage(err.message)
         }
     }
 
