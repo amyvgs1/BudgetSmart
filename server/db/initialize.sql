@@ -48,11 +48,13 @@ CREATE TABLE IF NOT EXISTS category (
 );
 CREATE TABLE IF NOT EXISTS friends (
     friendship_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INT,
-    friend_id INT,
+    user_id INTEGER NOT NULL,
+    friend_id INTEGER NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (friend_id) REFERENCES users(user_id)
+    FOREIGN KEY (friend_id) REFERENCES users(user_id),
+    UNIQUE(user_id, friend_id)
 );
 CREATE TABLE IF NOT EXISTS notifications (
     notifications_id INTEGER PRIMARY KEY AUTOINCREMENT,
