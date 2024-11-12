@@ -291,13 +291,52 @@ app.get('/api/friends/:userId', (req, res) => {
 
 // Test endpoint to list all users
 app.get('/api/users/all', (req, res) => {
-    db.all('SELECT * FROM users', [], (err, rows) => {
+    const query = `
+        SELECT 
+            u.user_id,
+            u.username,
+            COALESCE(us.total_saved, 0) as totalSaved,
+            COALESCE(us.savings_goal, 2000) as goal
+        FROM users u
+        LEFT JOIN user_savings us ON u.user_id = us.user_id
+        ORDER BY totalSaved DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
         if (err) {
             console.error('Error fetching users:', err);
             return res.status(500).json({ error: 'Database error' });
         }
-        console.log('All users:', rows);
-        res.json({ users: rows });
+        
+        // Add ranks to the sorted data
+        const usersWithRanks = rows.map((user, index) => ({
+            ...user,
+            rank: index + 1
+        }));
+
+        res.json({ users: usersWithRanks });
+    });
+});
+
+// Add an endpoint to update user savings
+app.post('/api/users/savings', (req, res) => {
+    const { user_id, total_saved, savings_goal } = req.body;
+    
+    const query = `
+        INSERT INTO user_savings (user_id, total_saved, savings_goal)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) 
+        DO UPDATE SET 
+            total_saved = ?,
+            savings_goal = ?
+    `;
+
+    db.run(query, [user_id, total_saved, savings_goal, total_saved, savings_goal], (err) => {
+        if (err) {
+            console.error('Error updating savings:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json({ success: true });
     });
 });
 
@@ -316,6 +355,38 @@ app.delete('/api/friends/:friendshipId', (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
         res.json({ message: 'Friend request removed successfully' });
+    });
+});
+
+// Get friends with savings data
+app.get('/api/friends/leaderboard/:userId', (req, res) => {
+    const userId = req.params.userId;
+    const query = `
+        SELECT 
+            u.user_id,
+            u.username,
+            COALESCE(us.total_saved, 0) as totalSaved,
+            COALESCE(us.savings_goal, 2000) as goal
+        FROM friends f
+        JOIN users u ON f.friend_id = u.user_id
+        LEFT JOIN user_savings us ON u.user_id = us.user_id
+        WHERE f.user_id = ? AND f.status = 'accepted'
+        ORDER BY totalSaved DESC
+    `;
+
+    db.all(query, [userId], (err, rows) => {
+        if (err) {
+            console.error('Error fetching friends:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        // Add ranks to the sorted data
+        const friendsWithRanks = rows.map((friend, index) => ({
+            ...friend,
+            rank: index + 1
+        }));
+
+        res.json({ friends: friendsWithRanks });
     });
 });
 

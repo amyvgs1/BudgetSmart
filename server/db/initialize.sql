@@ -64,3 +64,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     was_read BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
+CREATE TABLE IF NOT EXISTS user_savings (
+    user_id INTEGER PRIMARY KEY,
+    total_saved DECIMAL(10,2) DEFAULT 0.00,
+    savings_goal DECIMAL(10,2) DEFAULT 2000.00,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);

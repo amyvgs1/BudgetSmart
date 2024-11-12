@@ -1,28 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function LeaderBoard() {
-    const [activeView, setActiveView] = useState('global'); // 'global' or 'friends'
+    const [activeView, setActiveView] = useState('global');
+    const [friendsData, setFriendsData] = useState([]);
+    const [globalData, setGlobalData] = useState([]);
+    const userId = sessionStorage.getItem("user_id");
 
-    // Global leaderboard data
-    const globalData = [
-        { rank: 1, username: "sarah.mitchell", totalSaved: 3000, goal: 3000 },
-        { rank: 2, username: "mike_wilson87", totalSaved: 1800, goal: 2500 },
-        { rank: 3, username: "emily.brooks", totalSaved: 1500, goal: 2000 },
-        { rank: 4, username: "alex_thompson", totalSaved: 1200, goal: 2000 },
-        { rank: 5, username: "jessica.zhang", totalSaved: 1000, goal: 1500 },
-        { rank: 6, username: "david.parker22", totalSaved: 800, goal: 1500 },
-        { rank: 7, username: "lisa_anderson", totalSaved: 600, goal: 1000 },
-        { rank: 8, username: "chris.murphy89", totalSaved: 400, goal: 1000 },
-    ];
+    // Fetch global data
+    useEffect(() => {
+        if (activeView === 'global') {
+            fetchGlobalLeaderboard();
+        }
+    }, [activeView]);
 
-    // Friends leaderboard data (smaller sample)
-    const friendsData = [
-        { rank: 1, username: "john.doe", totalSaved: 1800, goal: 2000 },
-        { rank: 2, username: "amy.smith", totalSaved: 1500, goal: 2000 },
-        { rank: 3, username: "robert_jones", totalSaved: 1200, goal: 1500 },
-        { rank: 4, username: "emma.white", totalSaved: 900, goal: 1200 },
-        { rank: 5, username: "tom.brown", totalSaved: 600, goal: 1000 },
-    ];
+    // Fetch friends data
+    useEffect(() => {
+        if (activeView === 'friends') {
+            fetchFriendsLeaderboard();
+        }
+    }, [activeView]);
+
+    const fetchGlobalLeaderboard = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/users/all');
+            const users = response.data.users;
+
+            // Users are already sorted and ranked on the server
+            setGlobalData(users);
+        } catch (error) {
+            console.error('Error fetching global leaderboard:', error);
+            setGlobalData([]);
+        }
+    };
+
+    const fetchFriendsLeaderboard = async () => {
+        try {
+            const response = await axios.get(`http://localhost:8080/api/friends/leaderboard/${userId}`);
+            setFriendsData(response.data.friends);
+        } catch (error) {
+            console.error('Error fetching friends leaderboard:', error);
+            setFriendsData([]);
+        }
+    };
 
     // Function to format currency
     const formatCurrency = (amount) => {
