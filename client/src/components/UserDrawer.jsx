@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
@@ -9,24 +9,44 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import { Box, List } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import { supabase } from '../config/supabase';
 
 export default function UserDrawer() {
-  const [open, setOpen] = useState(false); // Controls the side drawer
-  const [popupOpen, setPopupOpen] = useState(false); // Controls the popup form
-  const [currentVal, setCurrentVal] = useState("");
-  const [totalBudget, setTotalBudget] = useState("");
+  const [open, setOpen] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [currentSaved, setCurrentSaved] = useState(0);
+  const [savingsGoal, setSavingsGoal] = useState(2000);
   const [progress, setProgress] = useState(null);
-  const [budgetName, setBudgetName] = useState(""); // Input for budget name
-  const [isSaved, setIsSaved] = useState(false); // Controls the saved message
+  const [isSaved, setIsSaved] = useState(false);
+  const userId = sessionStorage.getItem("user_id");
+  const [quickAddAmount, setQuickAddAmount] = useState('');
 
-  // For PieChart data
-  const chartData =
-    progress !== null
-      ? [
-          { label: "Achieved", value: progress },
-          { label: "Remaining", value: 100 - progress },
-        ]
-      : [];
+  // Fetch current savings data
+  useEffect(() => {
+    const fetchSavingsData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_savings')
+          .select('total_saved, savings_goal')
+          .eq('user_id', userId)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          setCurrentSaved(data.total_saved);
+          setSavingsGoal(data.savings_goal);
+          setProgress((data.total_saved / data.savings_goal) * 100);
+        }
+      } catch (error) {
+        console.error('Error fetching savings:', error);
+      }
+    };
+
+    if (popupOpen) {
+      fetchSavingsData();
+    }
+  }, [popupOpen, userId]);
 
   const toggleDrawer = () => {
     setOpen(!open);
@@ -36,40 +56,37 @@ export default function UserDrawer() {
     setPopupOpen(!popupOpen);
   };
 
-  // Handle form submit to calculate the budget progress
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const currentValFloat = parseFloat(currentVal);
-    const totalBudgetFloat = parseFloat(totalBudget);
+  // Handle saving updates
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('user_savings')
+        .update({ 
+          savings_goal: savingsGoal,
+          total_saved: currentSaved
+        })
+        .eq('user_id', userId);
 
-    if (
-      isNaN(currentValFloat) ||
-      isNaN(totalBudgetFloat) ||
-      totalBudgetFloat <= 0 ||
-      currentValFloat < 0
-    ) {
-      alert("Please enter valid values.");
-      return;
-    }
+      if (error) throw error;
 
-    const progressPercentage = (
-      (currentValFloat / totalBudgetFloat) *
-      100
-    ).toFixed(2);
-    setProgress(parseFloat(progressPercentage));
-  };
-
-  // Handle Save Budget
-  const handleSave = () => {
-    if (budgetName) {
-      setIsSaved(true); // Show the 'Budget Saved' message
+      setProgress((currentSaved / savingsGoal) * 100);
+      setIsSaved(true);
       setTimeout(() => {
-        setIsSaved(false); // Hide the message after 3 seconds
-      }, 3000);
-    } else {
-      alert("Please enter a name for the budget.");
+        setIsSaved(false);
+        togglePopup();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error updating savings:', error);
+      alert('Failed to update savings');
     }
   };
+
+  // Calculate chart data
+  const chartData = [
+    { label: "Saved", value: currentSaved },
+    { label: "Remaining", value: Math.max(savingsGoal - currentSaved, 0) }
+  ];
 
   const navigate = useNavigate();
 
@@ -87,6 +104,28 @@ export default function UserDrawer() {
   const drawerBehavior = (url) => {
     navigate(url);
     toggleDrawer();
+  };
+
+  // Add function to handle quick add
+  const handleQuickAdd = async (amount) => {
+    try {
+      const newTotal = currentSaved + amount;
+      const { error } = await supabase
+        .from('user_savings')
+        .update({ 
+          total_saved: newTotal
+        })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setCurrentSaved(newTotal);
+      setProgress((newTotal / savingsGoal) * 100);
+      setQuickAddAmount('');
+    } catch (error) {
+      console.error('Error updating savings:', error);
+      alert('Failed to update savings');
+    }
   };
 
   return (
@@ -120,7 +159,7 @@ export default function UserDrawer() {
               onClick={togglePopup}
               className="bg-orange-500 hover:bg-orange-300 w-60 h-10 rounded-lg font-Outfit text-2xl font-semibold text-white"
             >
-              Create Budget
+              Update Savings
             </Button>
 
             {/* Popup Dialog for Create Budget Form */}
@@ -145,87 +184,135 @@ export default function UserDrawer() {
                   <CloseIcon />
                 </IconButton>
 
-                {/* Form Content */}
-                <form onSubmit={handleSubmit} className="mt-4">
-                  <TextField
-                    label="Current Value"
-                    type="number"
-                    fullWidth
-                    value={currentVal}
-                    onChange={(e) => setCurrentVal(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <TextField
-                    label="Total Budget"
-                    type="number"
-                    fullWidth
-                    value={totalBudget}
-                    onChange={(e) => setTotalBudget(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                  >
-                    Calculate Progress
-                  </Button>
-                </form>
+                <div className="mt-4 flex flex-col items-center">
+                  <h2 className="text-2xl font-semibold mb-4 text-center">Update Savings Progress</h2>
+                  
+                  <div className="space-y-4 w-full max-w-md">
+                    <TextField
+                      label="Current Savings"
+                      type="number"
+                      fullWidth
+                      value={currentSaved}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setCurrentSaved(value >= 0 ? value : 0);
+                        setProgress((value / savingsGoal) * 100);
+                      }}
+                      required
+                      margin="normal"
+                      InputProps={{
+                        startAdornment: <span className="text-gray-500 mr-1">$</span>,
+                      }}
+                    />
 
-                {/* Render the Pie Chart if progress is available */}
-                {progress !== null && (
-                  <div className="mt-6 bg-gray-100 p-6 rounded-lg text-center max-w-lg mx-auto">
-                    <h3 className="text-2xl font-semibold mb-2">Progress</h3>
-                    <p className="text-lg">
-                      You have achieved{" "}
-                      <span className="font-bold text-blue-600">
-                        {progress}%
-                      </span>{" "}
-                      of your goal!
-                    </p>
-                    <PieChart
-                      series={[
-                        {
-                          innerRadius: 10,
-                          outerRadius: 100,
-                          startAngle: -90,
-                          endAngle: 90,
-                          data: chartData,
-                        },
-                      ]}
-                      width={400}
-                      height={200}
+                    <TextField
+                      label="Savings Goal"
+                      type="number"
+                      fullWidth
+                      value={savingsGoal}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setSavingsGoal(value > 0 ? value : 1);
+                        setProgress((currentSaved / value) * 100);
+                      }}
+                      required
+                      margin="normal"
+                      InputProps={{
+                        startAdornment: <span className="text-gray-500 mr-1">$</span>,
+                      }}
                     />
                   </div>
-                )}
 
-                {/* Save Budget Section */}
-                <div className="mt-6">
-                  <TextField
-                    label="Save Budget As"
-                    type="text"
-                    fullWidth
-                    value={budgetName}
-                    onChange={(e) => setBudgetName(e.target.value)}
-                    required
-                    margin="normal"
-                  />
+                  {/* Quick Add Section */}
+                  <div className="mt-6 p-4 border rounded-lg w-full max-w-md">
+                    <h3 className="text-lg font-semibold mb-3 text-center">Quick Add to Savings</h3>
+                    
+                    {/* Preset Buttons */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-3">
+                      {[10, 20, 50, 100].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => handleQuickAdd(amount)}
+                          className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-full transition-colors"
+                        >
+                          +${amount}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Custom Amount Input */}
+                    <div className="flex justify-center gap-2">
+                      <TextField
+                        label="Custom Amount"
+                        type="number"
+                        size="small"
+                        value={quickAddAmount}
+                        onChange={(e) => setQuickAddAmount(e.target.value)}
+                        InputProps={{
+                          startAdornment: <span className="text-gray-500 mr-1">$</span>,
+                        }}
+                      />
+                      <Button
+                        onClick={() => {
+                          if (quickAddAmount) {
+                            handleQuickAdd(Number(quickAddAmount));
+                          }
+                        }}
+                        variant="contained"
+                        color="success"
+                        disabled={!quickAddAmount}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Progress Display */}
+                  <div className="mt-6 bg-gray-100 p-6 rounded-lg w-full max-w-md">
+                    <h3 className="text-xl font-semibold mb-2 text-center">Current Progress</h3>
+                    <p className="text-lg mb-4 text-center">
+                      ${currentSaved.toLocaleString()} saved of ${savingsGoal.toLocaleString()} goal
+                      <br />
+                      <span className={`font-bold ${progress >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                        {progress?.toFixed(1)}%
+                      </span>
+                    </p>
+                    <div className="flex justify-center">
+                      <PieChart
+                        series={[
+                          {
+                            innerRadius: 10,
+                            outerRadius: 100,
+                            data: chartData,
+                            colors: [progress >= 100 ? '#059669' : '#2563eb', '#e5e7eb']
+                          },
+                        ]}
+                        width={400}
+                        height={200}
+                      />
+                    </div>
+                  </div>
+
                   <Button
                     onClick={handleSave}
                     variant="contained"
-                    color="success"
+                    color="primary"
                     fullWidth
+                    className="mt-4"
+                    sx={{
+                      backgroundColor: '#2563eb',
+                      '&:hover': {
+                        backgroundColor: '#1d4ed8',
+                      },
+                      maxWidth: '28rem',
+                    }}
                   >
-                    Save
+                    Update Savings
                   </Button>
 
-                  {/* Show "Budget Saved" message */}
                   {isSaved && (
                     <p className="text-green-600 font-semibold mt-2 text-center">
-                      Budget Saved!
+                      Savings Updated Successfully!
                     </p>
                   )}
                 </div>
