@@ -23,7 +23,8 @@ export default function LeaderBoard() {
 
     const fetchGlobalLeaderboard = async () => {
         try {
-            const { data: users, error } = await supabase
+            // First get the current user's savings data
+            const { data: currentUserSavings, error: currentUserError } = await supabase
                 .from('user_savings')
                 .select(`
                     user_id,
@@ -33,18 +34,56 @@ export default function LeaderBoard() {
                         username
                     )
                 `)
-                .order('total_saved', { ascending: false });
+                .eq('user_id', userId)
+                .single();
+
+            if (currentUserError && currentUserError.code !== 'PGRST116') { // Ignore "not found" error
+                throw currentUserError;
+            }
+
+            // Then get all users' data
+            const { data: users, error } = await supabase
+                .from('users')
+                .select(`
+                    user_id,
+                    username
+                `);
 
             if (error) throw error;
 
-            const transformedUsers = users.map((user, index) => ({
-                rank: index + 1,
-                username: user.users.username,
-                totalSaved: user.total_saved,
-                goal: user.savings_goal
+            // Get all savings data
+            const { data: allSavings, error: savingsError } = await supabase
+                .from('user_savings')
+                .select('*');
+
+            if (savingsError) throw savingsError;
+
+            // Combine the data
+            const transformedUsers = users.map(user => {
+                const savings = allSavings?.find(s => s.user_id === user.user_id) || {
+                    total_saved: 0,
+                    savings_goal: 2000
+                };
+
+                return {
+                    username: user.username,
+                    totalSaved: savings.total_saved || 0,
+                    goal: savings.savings_goal || 2000
+                };
+            })
+            .sort((a, b) => b.totalSaved - a.totalSaved)
+            .map((user, index) => ({
+                ...user,
+                rank: index + 1
             }));
 
-            setGlobalData(transformedUsers);
+            // Highlight current user
+            const finalData = transformedUsers.map(user => ({
+                ...user,
+                isCurrentUser: user.username === currentUserSavings?.users?.username
+            }));
+
+            setGlobalData(finalData);
         } catch (error) {
             console.error('Error fetching global leaderboard:', error);
             setGlobalData([]);
@@ -53,61 +92,105 @@ export default function LeaderBoard() {
 
     const fetchFriendsLeaderboard = async () => {
         try {
-            // First, get friends list with usernames
-            const { data: friends, error: friendsError } = await supabase
+            // Get current user's data with savings
+            const { data: currentUser, error: currentUserError } = await supabase
+                .from('user_savings')
+                .select(`
+                    total_saved,
+                    savings_goal,
+                    users (
+                        username
+                    )
+                `)
+                .eq('user_id', userId)
+                .single();
+
+            if (currentUserError) throw currentUserError;
+
+            // Get all friends (both as user and friend)
+            const { data: friendsAsUser, error: friendsAsUserError } = await supabase
                 .from('friends')
                 .select(`
-                    friendship_id,
-                    friend_id,
                     friend:users!friends_friend_id_fkey (
+                        user_id,
                         username
                     )
                 `)
                 .eq('user_id', userId)
                 .eq('status', 'accepted');
 
-            if (friendsError) {
-                console.error('Friends query error:', friendsError);
-                throw friendsError;
-            }
+            const { data: friendsAsFriend, error: friendsAsFriendError } = await supabase
+                .from('friends')
+                .select(`
+                    user:users!friends_user_id_fkey (
+                        user_id,
+                        username
+                    )
+                `)
+                .eq('friend_id', userId)
+                .eq('status', 'accepted');
 
-            console.log('Raw friends data:', friends);
+            if (friendsAsUserError) throw friendsAsUserError;
+            if (friendsAsFriendError) throw friendsAsFriendError;
 
-            // Then, get savings data for these friends
-            const friendIds = friends.map(friend => friend.friend_id);
-            const { data: savingsData, error: savingsError } = await supabase
+            // Get all friend IDs
+            const friendIds = [
+                ...friendsAsUser.map(f => f.friend.user_id),
+                ...friendsAsFriend.map(f => f.user.user_id)
+            ];
+
+            // Fetch savings data for all friends
+            const { data: friendsSavings, error: savingsError } = await supabase
                 .from('user_savings')
                 .select('*')
                 .in('user_id', friendIds);
 
-            if (savingsError) {
-                console.error('Savings query error:', savingsError);
-                throw savingsError;
-            }
+            if (savingsError) throw savingsError;
 
-            console.log('Raw savings data:', savingsData);
-
-            // Combine the data
-            const transformedFriends = friends
-                .map(friend => {
-                    const savings = savingsData?.find(s => s.user_id === friend.friend_id) || {
-                        total_saved: 0,
-                        savings_goal: 2000
-                    };
+            // Combine all friends data
+            const allFriends = [
+                ...friendsAsUser.map(f => {
+                    const savings = friendsSavings.find(s => s.user_id === f.friend.user_id);
                     return {
-                        username: friend.friend?.username || 'Unknown',
-                        totalSaved: savings.total_saved || 0,
-                        goal: savings.savings_goal || 2000
+                        username: f.friend.username,
+                        totalSaved: savings?.total_saved || 0,
+                        goal: savings?.savings_goal || 2000,
+                        isCurrentUser: false
+                    };
+                }),
+                ...friendsAsFriend.map(f => {
+                    const savings = friendsSavings.find(s => s.user_id === f.user.user_id);
+                    return {
+                        username: f.user.username,
+                        totalSaved: savings?.total_saved || 0,
+                        goal: savings?.savings_goal || 2000,
+                        isCurrentUser: false
                     };
                 })
+            ];
+
+            // Add current user and combine all data
+            const allUsers = [
+                {
+                    username: currentUser.users.username,
+                    totalSaved: currentUser.total_saved || 0,
+                    goal: currentUser.savings_goal || 2000,
+                    isCurrentUser: true
+                },
+                ...allFriends
+            ];
+
+            // Sort by total saved and add ranks
+            const rankedUsers = allUsers
                 .sort((a, b) => b.totalSaved - a.totalSaved)
-                .map((friend, index) => ({
-                    ...friend,
+                .map((user, index) => ({
+                    ...user,
                     rank: index + 1
                 }));
 
-            console.log('Transformed friends data:', transformedFriends);
-            setFriendsData(transformedFriends);
+            console.log('Transformed friends data:', rankedUsers);
+            setFriendsData(rankedUsers);
+
         } catch (error) {
             console.error('Error fetching friends leaderboard:', error);
             setFriendsData([]);
@@ -181,6 +264,8 @@ export default function LeaderBoard() {
                                     key={user.rank}
                                     className={`border-b hover:bg-gray-50 ${
                                         user.rank <= 3 ? 'bg-blue-50' : ''
+                                    } ${
+                                        user.isCurrentUser ? 'bg-yellow-50' : ''
                                     }`}
                                 >
                                     <td className="px-6 py-4">
@@ -191,7 +276,11 @@ export default function LeaderBoard() {
                                             {user.rank > 3 && <span className="font-semibold">{user.rank}</span>}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 font-semibold">{user.username}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`font-semibold ${user.isCurrentUser ? 'text-blue-600' : ''}`}>
+                                            {user.username} {user.isCurrentUser && '(You)'}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4">{formatCurrency(user.totalSaved)}</td>
                                     <td className="px-6 py-4">{formatCurrency(user.goal)}</td>
                                     <td className="px-6 py-4 w-1/4">
