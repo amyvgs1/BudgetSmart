@@ -11,6 +11,11 @@ function Calculator() {
 
   const handleEqual = () => {
     try {
+      // Check for division by zero
+      if (input.includes('/0')) {
+        setResult('Error: Division by Zero');
+        return;
+      }
       setResult(eval(input)); // Use eval to calculate the expression (simple cases)
     } catch (error) {
       setResult('Error');
