@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,7 +17,7 @@
     "@mui/material": "^6.1.4",
     "@mui/x-charts": "^7.22.1",
     "@mui/x-tree-view": "^7.22.1",
-    "@supabase/supabase-js": "^2.46.1",
+    "@supabase/supabase-js": "^2.46.2",
     "axios": "^1.7.7",
     "bootstrap": "^5.3.3",
     "react": "^18.3.1",
