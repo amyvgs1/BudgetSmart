@@ -1,6 +1,5 @@
 // this is for the extra pages like faq and about us
 import { ToggleBox } from "../components/ToggleBox";
-import aboutUs from "../assets/aboutUs.png";
 
 export function FAQ() {
     const toggleContent = [
@@ -32,7 +31,7 @@ export function AboutUs() {
                 <div className="flex flex-col justify-center items-center h-screen w-2/5 bg-blue-200">
                     <span className="text-6xl font-bold"><h1>About</h1></span>
                     <span className="text-6xl font-bold"><h1>Us</h1></span>
-                    <img src={aboutUs} />
+                    <img src="/aboutUs.png" alt="About Us" />
                 </div>
 
                 <div className="flex flex-col justify-center items-center h-screen w-3/5 p-20">
