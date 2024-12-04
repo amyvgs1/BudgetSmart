@@ -9,17 +9,19 @@
   </li>
 
   <li>
-    Download npm via main terminal using the command 'npm install -g npm'
+    Download npm via client terminal using the command 'npm install -g npm'
   </li>
 
   <li>
-    Have two terminals: one for server and one for client and issue the command 'npm install' on both
+    On the client terminal run the command 'npm install' , and "npm install @supabase/supabase-js"
   </li>
 
   <li>
-    On both terminals run the command 'npm run dev'
+    Rename .env.example to .env and fill in the supabase details.
   </li>
 
-  <h3>If running into issues with server terminal, delete node_modules folder and rerun npm install</h3>
-    
+  <li>
+    Run the command 'npm run dev' on the client terminal
+  </li>
+
 </ol>
