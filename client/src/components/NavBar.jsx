@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function NavBar() {
     return (
-        <div className="shadow-md w-full fixed top-0 left-0">
+        <div className="z-30 shadow-md w-full fixed top-0 left-0">
             <div className="md:flex items-center justify-between bg-white py-4 md:px-10 px-7">
                 <div className="flex text-2xl cursor-pointer items-center gap-2">
                     <Link to='/'>
@@ -12,11 +12,11 @@ export default function NavBar() {
 
                 <ul className="flex pl-9 md:pl-0 md:flex md:items-center">
                     <Link to='/faq'>
-                        <li className="font-semibold my-7 md:my-0 md:ml-8">FAQs</li>
+                        <li className="font-semibold my-7 md:my-0 md:ml-8 hover:bg-blue-400 p-2 rounded-lg">FAQs</li>
                     </Link>
 
                     <Link to='/about'>
-                        <li className="font-semibold my-7 md:my-0 md:ml-8">About Us</li>
+                        <li className="font-semibold my-7 md:my-0 md:ml-8 hover:bg-blue-400 p-2 rounded-lg">About Us</li>
                     </Link>
 
                     <Link to='/login'>
