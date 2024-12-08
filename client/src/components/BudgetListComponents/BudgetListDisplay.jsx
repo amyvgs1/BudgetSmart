@@ -22,7 +22,10 @@ export default function BudgetListDisplay(props) {
                     .select('budget_id')
                     .eq('member_id', userId);
 
-                if (memberError) throw memberError;
+                if (memberError) {
+                    console.error('Error fetching member budgets:', memberError);
+                    throw memberError;
+                }
 
                 // Get user's own budgets
                 const { data: ownBudgets, error: ownError } = await supabase
@@ -30,17 +33,28 @@ export default function BudgetListDisplay(props) {
                     .select('*')
                     .eq('user_id', userId);
 
-                if (ownError) throw ownError;
+                if (ownError) {
+                    console.error('Error fetching own budgets:', ownError);
+                    throw ownError;
+                }
 
                 // If there are group memberships, get those budgets
                 let groupBudgets = [];
                 if (memberBudgetIds && memberBudgetIds.length > 0) {
+                    const budgetIds = memberBudgetIds.map(item => item.budget_id);
+                    console.log('Fetching group budgets with IDs:', budgetIds);
+
                     const { data: groupData, error: groupError } = await supabase
                         .from('budget_plan')
                         .select('*')
-                        .in('budget_id', memberBudgetIds.map(item => item.budget_id));
+                        .in('budget_id', budgetIds);
 
-                    if (groupError) throw groupError;
+                    if (groupError) {
+                        console.error('Error fetching group budgets:', groupError);
+                        throw groupError;
+                    }
+                    
+                    console.log('Fetched group budgets:', groupData);
                     groupBudgets = groupData || [];
                 }
 
