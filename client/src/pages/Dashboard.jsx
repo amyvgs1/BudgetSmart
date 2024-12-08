@@ -100,8 +100,8 @@ export default function Dashboard() {
     const dashboardItems = [
         { name: "My Budgets", url: "/mybudgets", bgColor: "bg-blue-400", icon: "💰" },
         { name: "Friends", url: "/friends", bgColor: "bg-green-400", icon: "👥" },
-        { name: "Leaderboard", url: "/leader", bgColor: "bg-yellow-400", icon: "🏆" },
-        { name: "Currency", url: "/currency", bgColor: "bg-purple-400", icon: "💱" },
+        { name: "Leaderboard", url: "/leaderboard", bgColor: "bg-yellow-400", icon: "🏆" },
+        { name: "Currency", url: "/converter", bgColor: "bg-purple-400", icon: "💱" },
         { name: "Articles", url: "/articles", bgColor: "bg-red-400", icon: "📚" },
         { name: "Profile", url: "/profile", bgColor: "bg-orange-400", icon: "👤" }
     ];
