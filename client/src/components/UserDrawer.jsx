@@ -11,6 +11,20 @@ import { Box, List } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 export default function UserDrawer() {
+
+  const questions = [
+    "Do you often find yourself overspending?",
+    "Are you saving for a specific goal?",
+    "Do you track your monthly expenses?",
+    "Are you worried about debt?",
+    "Do you have an emergency fund?",
+    "Do you find budgeting overwhelming?",
+    "Do you feel in control of your financial decisions?",
+    "Are you satisfied with your current savings?",
+    "Do you set financial goals regularly?",
+    "Would you like to learn more about budgeting?",
+  ];
+
   const [open, setOpen] = useState(false); // Controls the side drawer
   const [popupOpen, setPopupOpen] = useState(false); // Controls the popup form
   const [currentVal, setCurrentVal] = useState("");
@@ -18,7 +32,76 @@ export default function UserDrawer() {
   const [progress, setProgress] = useState(null);
   const [budgetName, setBudgetName] = useState(""); // Input for budget name
   const [isSaved, setIsSaved] = useState(false); // Controls the saved message
+  const [responses, setResponses] = useState(Array(questions.length).fill(null));
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [points, setPoints] = useState(0);
 
+  //Is It Worth It Quiz segment
+
+  //const [popupOpen, setPopupOpen] = useState(false);
+
+  
+
+  const togglePopup = () => setPopupOpen(!popupOpen);
+
+  const handleAnswer = (answer) => {
+    const currentResponse = responses[currentQuestionIndex];
+
+    if (currentResponse === answer) {
+      // If the user clicks the same answer again, do nothing
+      return;
+    }
+
+    let newPoints = points;
+
+    // Adjust points based on the answer change
+    if (currentResponse === null) {
+      // First-time answer
+      newPoints += answer ? 1 : 0;
+    } else if (currentResponse === true && answer === false) {
+      // Switching from "Yes" to "No"
+      newPoints -= 1;
+    } else if (currentResponse === false && answer === true) {
+      // Switching from "No" to "Yes"
+      newPoints += 1;
+    }
+
+    // Update points and responses
+    setPoints(newPoints);
+
+    const updatedResponses = [...responses];
+    updatedResponses[currentQuestionIndex] = answer;
+    setResponses(updatedResponses);
+  };
+
+  const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleFinish = () => {
+    togglePopup();
+
+    if (points >= 5) {
+      alert("You probably need a budget plan!");
+    } else {
+      alert("You're managing well, but a budget plan might still help!");
+    }
+
+    // Reset the quiz for future use
+    setResponses(Array(10).fill(null));
+    setPoints(0);
+    setCurrentQuestionIndex(0);
+  };
+
+ 
   // For PieChart data
   const chartData =
     progress !== null
@@ -32,9 +115,7 @@ export default function UserDrawer() {
     setOpen(!open);
   };
 
-  const togglePopup = () => {
-    setPopupOpen(!popupOpen);
-  };
+
 
   // Handle form submit to calculate the budget progress
   const handleSubmit = (e) => {
@@ -59,17 +140,7 @@ export default function UserDrawer() {
     setProgress(parseFloat(progressPercentage));
   };
 
-  // Handle Save Budget
-  const handleSave = () => {
-    if (budgetName) {
-      setIsSaved(true); // Show the 'Budget Saved' message
-      setTimeout(() => {
-        setIsSaved(false); // Hide the message after 3 seconds
-      }, 3000);
-    } else {
-      alert("Please enter a name for the budget.");
-    }
-  };
+
 
   const navigate = useNavigate();
 
@@ -120,117 +191,104 @@ export default function UserDrawer() {
               onClick={togglePopup}
               className="bg-orange-500 hover:bg-orange-300 w-60 h-10 rounded-lg font-Outfit text-2xl font-semibold text-white"
             >
-              Create Budget
             </Button>
 
             {/* Popup Dialog for Create Budget Form */}
-            <Dialog
-              open={popupOpen}
-              onClose={togglePopup}
-              fullWidth
-              maxWidth="sm"
-            >
-              <div className="relative p-6">
-                {/* Red 'X' Button to close the dialog */}
-                <IconButton
-                  aria-label="close"
-                  onClick={togglePopup}
-                  sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    color: "red",
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
+            <div>
+      {/* Quiz Button */}
+      <Button
+        onClick={togglePopup}
+        className="bg-orange-500 hover:bg-orange-300 w-60 h-10 rounded-lg font-Outfit text-2xl font-semibold text-white"
+      >
+        Is It Worth It?
+      </Button>
 
-                {/* Form Content */}
-                <form onSubmit={handleSubmit} className="mt-4">
-                  <TextField
-                    label="Current Value"
-                    type="number"
-                    fullWidth
-                    value={currentVal}
-                    onChange={(e) => setCurrentVal(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <TextField
-                    label="Total Budget"
-                    type="number"
-                    fullWidth
-                    value={totalBudget}
-                    onChange={(e) => setTotalBudget(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                  >
-                    Calculate Progress
-                  </Button>
-                </form>
+      {/* Popup Dialog for the Quiz */}
+      <Dialog
+        open={popupOpen}
+        onClose={togglePopup}
+        fullWidth
+        maxWidth="sm"
+      >
+        <div className="relative p-6">
+          {/* Close Button */}
+          <IconButton
+            aria-label="close"
+            onClick={togglePopup}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: "red",
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
 
-                {/* Render the Pie Chart if progress is available */}
-                {progress !== null && (
-                  <div className="mt-6 bg-gray-100 p-6 rounded-lg text-center max-w-lg mx-auto">
-                    <h3 className="text-2xl font-semibold mb-2">Progress</h3>
-                    <p className="text-lg">
-                      You have achieved{" "}
-                      <span className="font-bold text-blue-600">
-                        {progress}%
-                      </span>{" "}
-                      of your goal!
-                    </p>
-                    <PieChart
-                      series={[
-                        {
-                          innerRadius: 10,
-                          outerRadius: 100,
-                          startAngle: -90,
-                          endAngle: 90,
-                          data: chartData,
-                        },
-                      ]}
-                      width={400}
-                      height={200}
-                    />
-                  </div>
-                )}
+          {/* Quiz Content */}
+          <div className="mt-4 text-center">
+            <h2 className="text-2xl font-bold mb-4">Is It Worth It? Quiz</h2>
 
-                {/* Save Budget Section */}
-                <div className="mt-6">
-                  <TextField
-                    label="Save Budget As"
-                    type="text"
-                    fullWidth
-                    value={budgetName}
-                    onChange={(e) => setBudgetName(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <Button
-                    onClick={handleSave}
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                  >
-                    Save
-                  </Button>
+            {/* Question Display */}
+            <p className="text-lg font-medium">{questions[currentQuestionIndex]}</p>
 
-                  {/* Show "Budget Saved" message */}
-                  {isSaved && (
-                    <p className="text-green-600 font-semibold mt-2 text-center">
-                      Budget Saved!
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Dialog>
+            {/* Answer Buttons */}
+            <div className="flex justify-center mt-6 space-x-4">
+              <Button
+              //problem segment
+                onClick={() => handleAnswer(true)}
+                className={`py-2 px-4 rounded-lg ${
+                  responses[currentQuestionIndex] === true
+                    ? "bg-green-500 text-white"
+                    : "bg-gray-300 text-black"
+                }`}
+              >
+                Yes
+              </Button>
+              <Button
+                //problem segment
+                onClick={() => handleAnswer(false)}
+                className={`py-2 px-4 rounded-lg ${
+                  responses[currentQuestionIndex] === false
+                    ? "bg-red-500 text-white"
+                    : "bg-gray-300 text-black"
+                }`}
+              >
+                No
+              </Button>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-6">
+              <Button
+                onClick={handlePrevious}
+                disabled={currentQuestionIndex === 0}
+                className="bg-gray-300 hover:bg-gray-200 text-black py-2 px-4 rounded-lg"
+              >
+                &lt; Previous
+              </Button>
+              <Button
+                onClick={handleNext}
+                disabled={currentQuestionIndex === questions.length - 1}
+                className="bg-gray-300 hover:bg-gray-200 text-black py-2 px-4 rounded-lg"
+              >
+                Next &gt;
+              </Button>
+            </div>
+
+            {/* Finish Button */}
+            {currentQuestionIndex === questions.length - 1 && (
+              <Button
+                onClick={() => alert("Thank you for taking the quiz!")}
+                className="bg-green-500 hover:bg-green-400 text-white py-2 px-6 rounded-lg mt-6"
+              >
+                Finish
+              </Button>
+            )}
+          </div>
+        </div>
+      </Dialog>
+    </div>
           </List>
         </Box>
       </Drawer>
