@@ -36,15 +36,41 @@ export default function NotificationBell() {
                 .from('notifications')
                 .select('*')
                 .eq('user_id', userId)
+                .eq('read', false)
                 .order('created_at', { ascending: false })
                 .limit(10);
 
             if (error) throw error;
 
             setNotifications(data || []);
-            setUnreadCount((data || []).filter(notif => !notif.read).length);
+            setUnreadCount((data || []).length);
         } catch (error) {
             console.error('Error fetching notifications:', error);
+        }
+    };
+
+    const markAsRead = async (notificationId) => {
+        try {
+            console.log('Attempting to update notification:', notificationId);
+            
+            // Update the notification in Supabase
+            const { error } = await supabase
+                .from('notifications')
+                .update({
+                    read: true
+                })
+                .match({ notification_id: notificationId });
+
+            if (error) {
+                console.error('Error updating notification:', error);
+                throw error;
+            }
+
+            // Refresh notifications after update
+            fetchNotifications();
+            
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
         }
     };
 
@@ -54,40 +80,6 @@ export default function NotificationBell() {
 
     const handleClose = () => {
         setAnchorEl(null);
-    };
-
-    const markAsRead = async (notificationId) => {
-        try {
-            const { error } = await supabase
-                .from('notifications')
-                .update({ read: true })
-                .eq('notification_id', notificationId);
-
-            if (error) throw error;
-
-            // Update local state
-            setNotifications(prevNotifications => 
-                prevNotifications.map(notif => 
-                    notif.notification_id === notificationId 
-                        ? { ...notif, read: true }
-                        : notif
-                )
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-        }
-    };
-
-    const formatTimestamp = (timestamp) => {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = (now - date) / 1000; // difference in seconds
-
-        if (diff < 60) return 'Just now';
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-        return date.toLocaleDateString();
     };
 
     return (
@@ -103,42 +95,32 @@ export default function NotificationBell() {
                     <NotificationsIcon />
                 </Badge>
             </IconButton>
-
             <Menu
                 id="notifications-menu"
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}
-                onClick={handleClose}
-                PaperProps={{
-                    style: {
-                        maxHeight: '400px',
-                        width: '300px',
-                    },
+                MenuListProps={{
+                    'aria-labelledby': 'notifications-button',
                 }}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
                 {notifications.length === 0 ? (
-                    <MenuItem disabled>
-                        <Typography>No notifications</Typography>
-                    </MenuItem>
+                    <MenuItem disabled>No new notifications</MenuItem>
                 ) : (
                     notifications.map((notification) => (
-                        <MenuItem
+                        <MenuItem 
                             key={notification.notification_id}
-                            onClick={() => markAsRead(notification.notification_id)}
-                            sx={{
-                                backgroundColor: notification.read ? 'transparent' : 'action.hover',
-                                display: 'block',
+                            onClick={() => {
+                                markAsRead(notification.notification_id);
+                                handleClose();
                             }}
                         >
-                            <Typography variant="body1" noWrap>
-                                {notification.message}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {formatTimestamp(notification.created_at)}
-                            </Typography>
+                            <div className="flex flex-col w-full">
+                                <Typography variant="body1">{notification.message}</Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                    {new Date(notification.created_at).toLocaleString()}
+                                </Typography>
+                            </div>
                         </MenuItem>
                     ))
                 )}
