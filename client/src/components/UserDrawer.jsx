@@ -11,7 +11,7 @@ import { Box, List } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SavingsManager from './SavingsManager';
 import { supabase } from "../config/supabase";
-import Calculator from './Calculator';
+import Calculator from './calculator';
 import calc from "../assets/calc.png";
 
 export default function UserDrawer() {

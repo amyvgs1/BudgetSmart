@@ -35,9 +35,14 @@ function App() {
     const initializeAuth = async () => {
       try {
         console.log("1. Starting initialization...");
+        // Get current session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
-        if (currentSession?.user) {
+        if (error) throw error;
+        
+        console.log("Current session:", currentSession);
+
+        if (currentSession?.user?.id) {  // Make sure we have a valid user ID
           setSession(currentSession);
           const { data, error: userError } = await supabase
             .from('users')
@@ -48,17 +53,24 @@ function App() {
           if (userError) throw userError;
 
           if (data) {
+            // Store in both localStorage and sessionStorage for redundancy
+            sessionStorage.setItem('user_id', currentSession.user.id);
+            sessionStorage.setItem('username', data.username);
+            sessionStorage.setItem('user_name', `${data.first_name} ${data.last_name}`);
+            
             localStorage.setItem('user_id', currentSession.user.id);
             localStorage.setItem('username', data.username);
             localStorage.setItem('user_name', `${data.first_name} ${data.last_name}`);
             localStorage.setItem('session', JSON.stringify(currentSession));
+            
             setAuth(true);
+          } else {
+            throw new Error("No user data found");
           }
         }
       } catch (error) {
         console.error("Init Error:", error);
-        localStorage.clear();
-        setAuth(false);
+        handleSignOut();
       } finally {
         setInitializing(false);
       }
@@ -67,12 +79,11 @@ function App() {
     initializeAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("Auth Event:", event, "Session:", newSession);
+      
       if (initializing) return;
       
-      console.log("Auth Event:", event);
-      setSession(newSession);
-
-      if (event === 'SIGNED_IN' && newSession?.user) {
+      if (event === 'SIGNED_IN' && newSession?.user?.id) {
         try {
           const { data, error: userError } = await supabase
             .from('users')
@@ -83,11 +94,17 @@ function App() {
           if (userError) throw userError;
 
           if (data) {
+            sessionStorage.setItem('user_id', newSession.user.id);
+            sessionStorage.setItem('username', data.username);
+            sessionStorage.setItem('user_name', `${data.first_name} ${data.last_name}`);
+            
             localStorage.setItem('user_id', newSession.user.id);
             localStorage.setItem('username', data.username);
             localStorage.setItem('user_name', `${data.first_name} ${data.last_name}`);
             localStorage.setItem('session', JSON.stringify(newSession));
+            
             setAuth(true);
+            setSession(newSession);
             navigate('/dashboard', { replace: true });
           }
         } catch (error) {
@@ -108,6 +125,7 @@ function App() {
 
   const handleSignOut = () => {
     localStorage.clear();
+    sessionStorage.clear();
     setAuth(false);
     setSession(null);
     navigate('/login', { replace: true });
