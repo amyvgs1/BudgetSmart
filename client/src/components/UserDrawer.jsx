@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
@@ -9,84 +9,123 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import { Box, List } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import SavingsManager from './SavingsManager';
+import { supabase } from "../config/supabase";
+import Calculator from './Calculator';
+import calc from "../assets/calc.png";
 
 export default function UserDrawer() {
-  const [open, setOpen] = useState(false); // Controls the side drawer
-  const [popupOpen, setPopupOpen] = useState(false); // Controls the popup form
-  const [currentVal, setCurrentVal] = useState("");
-  const [totalBudget, setTotalBudget] = useState("");
-  const [progress, setProgress] = useState(null);
-  const [budgetName, setBudgetName] = useState(""); // Input for budget name
-  const [isSaved, setIsSaved] = useState(false); // Controls the saved message
+  const questions = [
+    "Do you often find yourself overspending?",
+    "Are you saving for a specific goal?",
+    "Do you track your monthly expenses?",
+    "Are you worried about debt?",
+    "Do you have an emergency fund?",
+    "Do you find budgeting overwhelming?",
+    "Do you feel in control of your financial decisions?",
+    "Are you satisfied with your current savings?",
+    "Do you set financial goals regularly?",
+    "Would you like to learn more about budgeting?",
+  ];
 
-  // For PieChart data
-  const chartData =
-    progress !== null
-      ? [
-          { label: "Achieved", value: progress },
-          { label: "Remaining", value: 100 - progress },
-        ]
-      : [];
+  const [open, setOpen] = useState(false);
+  const [savingsOpen, setSavingsOpen] = useState(false);
+  const [currentSavings, setCurrentSavings] = useState(0);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [responses, setResponses] = useState(Array(questions.length).fill(null));
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [showCalculator, setShowCalculator] = useState(false);
+
+  useEffect(() => {
+    fetchSavingsData();
+  }, []);
+
+  const fetchSavingsData = async () => {
+    try {
+      const userId = localStorage.getItem("user_id");
+      const { data, error } = await supabase
+        .from('user_savings')
+        .select('total_saved')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) throw error;
+      setCurrentSavings(data.total_saved);
+    } catch (error) {
+      console.error('Error fetching savings:', error);
+    }
+  };
 
   const toggleDrawer = () => {
     setOpen(!open);
   };
 
-  const togglePopup = () => {
-    setPopupOpen(!popupOpen);
-  };
+  const toggleQuiz = () => setQuizOpen(!quizOpen);
 
-  // Handle form submit to calculate the budget progress
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const currentValFloat = parseFloat(currentVal);
-    const totalBudgetFloat = parseFloat(totalBudget);
+  const handleAnswer = (answer) => {
+    const currentResponse = responses[currentQuestionIndex];
 
-    if (
-      isNaN(currentValFloat) ||
-      isNaN(totalBudgetFloat) ||
-      totalBudgetFloat <= 0 ||
-      currentValFloat < 0
-    ) {
-      alert("Please enter valid values.");
-      return;
+    if (currentResponse === answer) return;
+
+    let newPoints = points;
+    if (currentResponse === null) {
+      newPoints += answer ? 1 : 0;
+    } else if (currentResponse === true && answer === false) {
+      newPoints -= 1;
+    } else if (currentResponse === false && answer === true) {
+      newPoints += 1;
     }
 
-    const progressPercentage = (
-      (currentValFloat / totalBudgetFloat) *
-      100
-    ).toFixed(2);
-    setProgress(parseFloat(progressPercentage));
+    setPoints(newPoints);
+    const updatedResponses = [...responses];
+    updatedResponses[currentQuestionIndex] = answer;
+    setResponses(updatedResponses);
   };
 
-  // Handle Save Budget
-  const handleSave = () => {
-    if (budgetName) {
-      setIsSaved(true); // Show the 'Budget Saved' message
-      setTimeout(() => {
-        setIsSaved(false); // Hide the message after 3 seconds
-      }, 3000);
+  const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleFinish = () => {
+    toggleQuiz();
+    if (points >= 5) {
+      alert("You probably need a budget plan!");
     } else {
-      alert("Please enter a name for the budget.");
+      alert("You're managing well, but a budget plan might still help!");
     }
+    setResponses(Array(10).fill(null));
+    setPoints(0);
+    setCurrentQuestionIndex(0);
   };
 
   const navigate = useNavigate();
 
-  // Create objects that contain name and destination
   const drawerContent = [
-    { name: "Dashboard", url: "/dashboard" },
-    { name: "Profile/Settings", url: "/profile" },
-    { name: "Articles", url: "/articles" },
-    { name: "Add Friends", url: "/addfriends" },
-    { name: "My Budgets", url: "/mybudgets" },
-    { name: "Leaderboard", url: "/leader" },
-    { name: "Currency", url: "/currency" },
+    { name: "Dashboard", url: "/dashboard", bgColor: "bg-blue-400", icon: "🏠" },
+    { name: "Profile/Settings", url: "/profile", bgColor: "bg-orange-400", icon: "👤" },
+    { name: "Articles", url: "/articles", bgColor: "bg-red-400", icon: "📚" },
+    { name: "Add Friends", url: "/friends", bgColor: "bg-green-400", icon: "👥" },
+    { name: "My Budgets", url: "/mybudgets", bgColor: "bg-purple-400", icon: "💰" },
+    { name: "Leaderboard", url: "/leaderboard", bgColor: "bg-yellow-400", icon: "🏆" },
+    { name: "Currency", url: "/converter", bgColor: "bg-indigo-400", icon: "💱" },
   ];
 
   const drawerBehavior = (url) => {
     navigate(url);
     toggleDrawer();
+  };
+
+  const toggleCalculator = () => {
+    setShowCalculator(!showCalculator);
   };
 
   return (
@@ -95,145 +134,135 @@ export default function UserDrawer() {
         <MenuIcon />
       </IconButton>
       <Drawer anchor="left" open={open} onClose={toggleDrawer}>
-        <Box sx={{ width: 250 }} role="presentation">
-          <List
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            {drawerContent.map((element, index) => {
-              return (
-                <li key={index}>
-                  <div
-                    className="flex items-center text-2xl font-Outfit justify-center h-20 border-b border-t hover:bg-orange-300 hover:text-white p-10"
-                    onClick={() => drawerBehavior(element.url)}
-                  >
-                    <h2>{element.name}</h2>
-                  </div>
-                </li>
-              );
-            })}
-
-            <Button
-              onClick={togglePopup}
-              className="bg-orange-500 hover:bg-orange-300 w-60 h-10 rounded-lg font-Outfit text-2xl font-semibold text-white"
-            >
-              Create Budget
-            </Button>
-
-            {/* Popup Dialog for Create Budget Form */}
-            <Dialog
-              open={popupOpen}
-              onClose={togglePopup}
-              fullWidth
-              maxWidth="sm"
-            >
-              <div className="relative p-6">
-                {/* Red 'X' Button to close the dialog */}
-                <IconButton
-                  aria-label="close"
-                  onClick={togglePopup}
-                  sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    color: "red",
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-
-                {/* Form Content */}
-                <form onSubmit={handleSubmit} className="mt-4">
-                  <TextField
-                    label="Current Value"
-                    type="number"
-                    fullWidth
-                    value={currentVal}
-                    onChange={(e) => setCurrentVal(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <TextField
-                    label="Total Budget"
-                    type="number"
-                    fullWidth
-                    value={totalBudget}
-                    onChange={(e) => setTotalBudget(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                  >
-                    Calculate Progress
-                  </Button>
-                </form>
-
-                {/* Render the Pie Chart if progress is available */}
-                {progress !== null && (
-                  <div className="mt-6 bg-gray-100 p-6 rounded-lg text-center max-w-lg mx-auto">
-                    <h3 className="text-2xl font-semibold mb-2">Progress</h3>
-                    <p className="text-lg">
-                      You have achieved{" "}
-                      <span className="font-bold text-blue-600">
-                        {progress}%
-                      </span>{" "}
-                      of your goal!
-                    </p>
-                    <PieChart
-                      series={[
-                        {
-                          innerRadius: 10,
-                          outerRadius: 100,
-                          startAngle: -90,
-                          endAngle: 90,
-                          data: chartData,
-                        },
-                      ]}
-                      width={400}
-                      height={200}
-                    />
-                  </div>
-                )}
-
-                {/* Save Budget Section */}
-                <div className="mt-6">
-                  <TextField
-                    label="Save Budget As"
-                    type="text"
-                    fullWidth
-                    value={budgetName}
-                    onChange={(e) => setBudgetName(e.target.value)}
-                    required
-                    margin="normal"
-                  />
-                  <Button
-                    onClick={handleSave}
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                  >
-                    Save
-                  </Button>
-
-                  {/* Show "Budget Saved" message */}
-                  {isSaved && (
-                    <p className="text-green-600 font-semibold mt-2 text-center">
-                      Budget Saved!
-                    </p>
-                  )}
+        <Box sx={{ width: 300, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
+          <List sx={{ p: 2, flex: 1 }}>
+            {drawerContent.map((item, index) => (
+              <div
+                key={index}
+                onClick={() => drawerBehavior(item.url)}
+                className={`${item.bgColor} hover:opacity-90 transition-all duration-200 
+                           rounded-lg shadow-lg p-4 mb-3 cursor-pointer transform hover:scale-105`}
+              >
+                <div className="flex items-center text-white">
+                  <span className="text-2xl mr-3">{item.icon}</span>
+                  <h2 className="text-xl font-semibold">{item.name}</h2>
                 </div>
               </div>
-            </Dialog>
+            ))}
+
+            <div
+              onClick={() => setSavingsOpen(true)}
+              className="bg-orange-500 hover:opacity-90 transition-all duration-200 
+                         rounded-lg shadow-lg p-4 mb-3 cursor-pointer transform hover:scale-105"
+            >
+              <div className="flex items-center text-white">
+                <span className="text-2xl mr-3">💵</span>
+                <h2 className="text-xl font-semibold">Manage Savings</h2>
+              </div>
+            </div>
+
+            <div
+              onClick={toggleQuiz}
+              className="bg-green-500 hover:opacity-90 transition-all duration-200 
+                         rounded-lg shadow-lg p-4 mb-3 cursor-pointer transform hover:scale-105"
+            >
+              <div className="flex items-center text-white">
+                <span className="text-2xl mr-3">🤔</span>
+                <h2 className="text-xl font-semibold">Is It Worth It?</h2>
+              </div>
+            </div>
           </List>
+
+          <div className="p-4 border-t mt-auto">
+            <div 
+              onClick={toggleCalculator}
+              className="flex items-center justify-center cursor-pointer hover:bg-gray-100 rounded-full p-2"
+            >
+              <img src={calc} alt="Calculator" className="w-8 h-8" />
+            </div>
+          </div>
+
+          {showCalculator && (
+            <div className="absolute bottom-16 left-0 right-0 mx-4">
+              <Calculator />
+            </div>
+          )}
         </Box>
       </Drawer>
+
+      <SavingsManager
+        open={savingsOpen}
+        onClose={() => setSavingsOpen(false)}
+      />
+
+      <Dialog
+        open={quizOpen}
+        onClose={toggleQuiz}
+        fullWidth
+        maxWidth="sm"
+      >
+        <div className="relative p-6">
+          <IconButton
+            onClick={toggleQuiz}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: "red",
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          <div className="mt-4 text-center">
+            <h2 className="text-2xl font-bold mb-4">Is It Worth It? Quiz</h2>
+            <p className="text-lg font-medium mb-6">{questions[currentQuestionIndex]}</p>
+
+            <div className="flex justify-center space-x-4 mb-6">
+              <Button
+                variant="contained"
+                color={responses[currentQuestionIndex] === true ? "success" : "inherit"}
+                onClick={() => handleAnswer(true)}
+              >
+                Yes
+              </Button>
+              <Button
+                variant="contained"
+                color={responses[currentQuestionIndex] === false ? "error" : "inherit"}
+                onClick={() => handleAnswer(false)}
+              >
+                No
+              </Button>
+            </div>
+
+            <div className="flex justify-between">
+              <Button
+                variant="contained"
+                onClick={handlePrevious}
+                disabled={currentQuestionIndex === 0}
+              >
+                Previous
+              </Button>
+              {currentQuestionIndex === questions.length - 1 ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleFinish}
+                >
+                  Finish
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                >
+                  Next
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
