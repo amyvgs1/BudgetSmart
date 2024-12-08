@@ -12,25 +12,63 @@ export default function BudgetListDisplay(props) {
     }
 
     useEffect(() => {
-        const getUserBudgets = async () => {
+        const fetchBudgetLists = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('budget_plan')
-                    .select('*')
-                    .eq('user_id', user_id)
-                    .order('created_at', { ascending: false });
+                const userId = sessionStorage.getItem('user_id');
+                
+                // Get all budget IDs where the user is a member
+                const { data: memberBudgetIds, error: memberError } = await supabase
+                    .from('group_plan_members')
+                    .select('budget_id')
+                    .eq('member_id', userId);
 
-                if (error) {
-                    throw error;
+                if (memberError) {
+                    console.error('Error fetching member budgets:', memberError);
+                    throw memberError;
                 }
 
-                setUserBudgets(data);
-            } catch (e) {
-                console.error('Error fetching budgets:', e);
+                // Get user's own budgets
+                const { data: ownBudgets, error: ownError } = await supabase
+                    .from('budget_plan')
+                    .select('*')
+                    .eq('user_id', userId);
+
+                if (ownError) {
+                    console.error('Error fetching own budgets:', ownError);
+                    throw ownError;
+                }
+
+                // If there are group memberships, get those budgets
+                let groupBudgets = [];
+                if (memberBudgetIds && memberBudgetIds.length > 0) {
+                    const budgetIds = memberBudgetIds.map(item => item.budget_id);
+                    console.log('Fetching group budgets with IDs:', budgetIds);
+
+                    const { data: groupData, error: groupError } = await supabase
+                        .from('budget_plan')
+                        .select('*')
+                        .in('budget_id', budgetIds);
+
+                    if (groupError) {
+                        console.error('Error fetching group budgets:', groupError);
+                        throw groupError;
+                    }
+                    
+                    console.log('Fetched group budgets:', groupData);
+                    groupBudgets = groupData || [];
+                }
+
+                // Combine and deduplicate budgets
+                const allBudgets = [...(ownBudgets || []), ...groupBudgets];
+                const uniqueBudgets = Array.from(new Map(allBudgets.map(item => [item.budget_id, item])).values());
+                
+                setUserBudgets(uniqueBudgets);
+            } catch (error) {
+                console.error('Error fetching budget lists:', error);
             }
         };
 
-        getUserBudgets();
+        fetchBudgetLists();
     }, []);
 
     return (

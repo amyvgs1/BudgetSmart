@@ -23,6 +23,7 @@ export default function Dashboard() {
             { id: 3, description: "Netflix Subscription", amount: -15, date: "2024-03-13" },
         ]
     });
+    const [recentTransactions, setRecentTransactions] = useState([]);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -71,15 +72,36 @@ export default function Dashboard() {
             }
         };
 
+        const fetchRecentTransactions = async () => {
+            try {
+                const userId = sessionStorage.getItem("user_id");
+                const { data, error } = await supabase
+                    .from('savings_transactions')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(2);
+
+                if (error) throw error;
+
+                if (data) {
+                    setRecentTransactions(data);
+                }
+            } catch (error) {
+                console.error('Error fetching transactions:', error);
+            }
+        };
+
         fetchUserData();
         fetchUserSavings();
+        fetchRecentTransactions();
     }, []);
 
     const dashboardItems = [
         { name: "My Budgets", url: "/mybudgets", bgColor: "bg-blue-400", icon: "💰" },
-        { name: "Friends", url: "/addfriends", bgColor: "bg-green-400", icon: "👥" },
-        { name: "Leaderboard", url: "/leader", bgColor: "bg-yellow-400", icon: "🏆" },
-        { name: "Currency", url: "/currency", bgColor: "bg-purple-400", icon: "💱" },
+        { name: "Friends", url: "/friends", bgColor: "bg-green-400", icon: "👥" },
+        { name: "Leaderboard", url: "/leaderboard", bgColor: "bg-yellow-400", icon: "🏆" },
+        { name: "Currency", url: "/converter", bgColor: "bg-purple-400", icon: "💱" },
         { name: "Articles", url: "/articles", bgColor: "bg-red-400", icon: "📚" },
         { name: "Profile", url: "/profile", bgColor: "bg-orange-400", icon: "👤" }
     ];
@@ -128,13 +150,32 @@ export default function Dashboard() {
                             <div className="bg-purple-50 rounded-lg p-4">
                                 <h3 className="text-lg font-semibold text-purple-800 mb-2">Recent Transactions</h3>
                                 <div className="space-y-2">
-                                    {budgetOverview.recentTransactions.map(transaction => (
-                                        <div key={transaction.id} className="flex justify-between items-center">
-                                            <span className="text-sm truncate">{transaction.description}</span>
-                                            <span className={`text-sm font-semibold ${
-                                                transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                                    {recentTransactions.map((transaction) => (
+                                        <div 
+                                            key={transaction.transaction_id}
+                                            className={`flex items-center justify-between p-3 rounded-lg ${
+                                                transaction.type === 'deposit' ? 'bg-green-100' : 'bg-red-100'
+                                            }`}
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <span className="text-xl">
+                                                    {transaction.type === 'deposit' ? '💰' : '📤'}
+                                                </span>
+                                                <div>
+                                                    <p className="font-semibold">{transaction.description}</p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {new Date(transaction.created_at).toLocaleDateString('en-US', {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className={`font-semibold ${
+                                                transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'
                                             }`}>
-                                                ${Math.abs(transaction.amount)}
+                                                {transaction.type === 'deposit' ? '+' : '-'}${Math.abs(transaction.amount)}
                                             </span>
                                         </div>
                                     ))}

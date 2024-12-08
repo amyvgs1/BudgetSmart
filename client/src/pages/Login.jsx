@@ -25,29 +25,66 @@ export default function Login(props){
 
     const inputStyle = 'appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white';
 
-    const verifyLogin = async (e) =>{
-        e.preventDefault()
+    const verifyLogin = async (e) => {
+        e.preventDefault();
+        setMessage("");
 
-        try{
-            const { data, error } = await supabase.auth.signInWithPassword({
+        try {
+            console.log('Attempting login with:', { email, pass });
+            const { data, error: signInError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: pass
-            })
+            });
 
-            if (error) throw error
+            console.log('Full Supabase sign in response:', data);
 
-            // Store user session
-            sessionStorage.setItem('user_id', data.user.id)
-            sessionStorage.setItem('user_name', `${data.user.user_metadata.first_name} ${data.user.user_metadata.last_name}`)
-            
-            props.setAuth(true)
-            navigate('/dashboard')
+            if (signInError) throw signInError;
 
-        } catch(err) {
-            console.error('Error:', err.message);
-            setMessage(err.message)
+            if (!data?.user || !data?.session) {
+                throw new Error('Login failed - no user or session');
+            }
+
+            // Get user data from users table
+            const { data: userData, error: userDataError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('user_id', data.user.id)
+                .single();
+
+            console.log('User data query result:', userData, userDataError);
+
+            if (userDataError) throw userDataError;
+
+            // Store in localStorage
+            localStorage.setItem("user_id", data.user.id);
+            localStorage.setItem("username", userData.username);
+            localStorage.setItem("user_name", `${userData.first_name} ${userData.last_name}`);
+            localStorage.setItem("session", JSON.stringify(data.session));
+
+            // Set auth state and navigate
+            props.setAuth(true);
+            navigate("/dashboard", { replace: true });
+
+        } catch (error) {
+            console.error('Login error:', error);
+            setMessage(error.message);
         }
-    }
+    };
+
+    const resendVerificationEmail = async () => {
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email
+            });
+            
+            if (error) throw error;
+            
+            setMessage("Verification email resent! Please check your inbox.");
+        } catch (error) {
+            setMessage("Error sending verification email: " + error.message);
+        }
+    };
 
     return(
         <>
@@ -60,18 +97,41 @@ export default function Login(props){
                     <form onSubmit={verifyLogin} className="mt-5 grid grid-cols-4 gap-4 mb-3">
                         <div className="col-span-4 ">
                             <p>Email</p>
-                            <input value={email} className={inputStyle} placeholder="Your Email" onChange={(e) => setEmail(e.target.value)}></input>
+                            <input 
+                                type="email"
+                                value={email} 
+                                className={inputStyle} 
+                                placeholder="Your Email" 
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
                         </div>
 
                         <div className="col-span-4">
                             <p>Password</p>
-                            <input value={pass} className={inputStyle} placeholder="Your Password" onChange={(e) => setPass(e.target.value)}></input>
+                            <input 
+                                type="password"
+                                value={pass} 
+                                className={inputStyle} 
+                                placeholder="Your Password" 
+                                onChange={(e) => setPass(e.target.value)}
+                                required
+                            />
                         </div>
 
                         <button type="submit" className="col-span-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Login</button>
                     </form>
 
                     <Link to="/create" className="text-blue-500 hover:underline"><p>Dont have an account? Create one here!</p></Link>
+
+                    {message.includes("verify your email") && (
+                        <button 
+                            onClick={resendVerificationEmail}
+                            className="text-blue-500 hover:text-blue-700 underline mt-2"
+                        >
+                            Resend verification email
+                        </button>
+                    )}
 
                 </div>
             </div>

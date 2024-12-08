@@ -17,6 +17,10 @@ export default function PlanForm(props) {
     const [categories, setCategories] = useState([]);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [friends, setFriends] = useState([]);
 
     // Fetch categories when component mounts
     useEffect(() => {
@@ -37,6 +41,85 @@ export default function PlanForm(props) {
 
         fetchCategories();
     }, []);
+
+    useEffect(() => {
+        if (props.isGroup) {
+            fetchFriends();
+        }
+    }, [props.isGroup]);
+
+    const fetchFriends = async () => {
+        try {
+            const userId = sessionStorage.getItem('user_id');
+            
+            // Get friends where user is the requester
+            const { data: friendsAsUser, error: friendsAsUserError } = await supabase
+                .from('friends')
+                .select('friend:friend_id(user_id, username, first_name, last_name)')
+                .eq('user_id', userId)
+                .eq('status', 'accepted');
+
+            // Get friends where user is the friend
+            const { data: friendsAsFriend, error: friendsAsFriendError } = await supabase
+                .from('friends')
+                .select('user:user_id(user_id, username, first_name, last_name)')
+                .eq('friend_id', userId)
+                .eq('status', 'accepted');
+
+            if (friendsAsUserError || friendsAsFriendError) throw error;
+
+            const allFriends = [
+                ...friendsAsUser.map(f => f.friend),
+                ...friendsAsFriend.map(f => f.user)
+            ];
+            setFriends(allFriends);
+        } catch (error) {
+            console.error('Error fetching friends:', error);
+        }
+    };
+
+    const searchUsers = async (term) => {
+        if (term.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('user_id, username, first_name, last_name')
+                .ilike('username', `%${term}%`)
+                .limit(5);
+
+            if (error) throw error;
+            
+            // Add console.log to debug
+            console.log('Search results:', data);
+            
+            // Filter out current user and already selected members
+            const filteredResults = data.filter(user => 
+                user.user_id !== sessionStorage.getItem('user_id') &&
+                !selectedMembers.find(m => m.user_id === user.user_id)
+            );
+
+            setSearchResults(filteredResults);
+        } catch (error) {
+            console.error('Error searching users:', error);
+            setSearchResults([]);
+        }
+    };
+
+    const addGroupMember = (member) => {
+        if (!selectedMembers.find(m => m.user_id === member.user_id)) {
+            setSelectedMembers([...selectedMembers, member]);
+        }
+        setSearchTerm('');
+        setSearchResults([]);
+    };
+
+    const removeMember = (userId) => {
+        setSelectedMembers(selectedMembers.filter(m => m.user_id !== userId));
+    };
 
     // logic for submitting a budget plan form
     const submitBehavior = async(e) => {
@@ -94,18 +177,53 @@ export default function PlanForm(props) {
                 if (itemsError) throw itemsError;
             }
 
-            // Insert group members if it's a group plan
-            if (props.isGroup && memberList.length > 0) {
-                const groupMembers = memberList.map(memberName => ({
-                    budget_id: budgetData.budget_id,
-                    member_name: memberName
-                }));
+            // If it's a group plan, add members
+            if (props.isGroup && selectedMembers.length > 0) {
+                try {
+                    // First, let's log the table structure
+                    const { data: tableInfo, error: tableError } = await supabase
+                        .from('notifications')
+                        .select()
+                        .limit(1);
+                    
+                    console.log('Notifications table structure:', tableInfo);
 
-                const { error: membersError } = await supabase
-                    .from('budget_group_members')
-                    .insert(groupMembers);
+                    const groupMembers = selectedMembers.map(member => ({
+                        budget_id: budgetData.budget_id,
+                        member_id: member.user_id,
+                        username: member.username
+                    }));
 
-                if (membersError) throw membersError;
+                    const { error: membersError } = await supabase
+                        .from('group_plan_members')
+                        .insert(groupMembers);
+
+                    if (membersError) throw membersError;
+
+                    // Create notifications for each member
+                    const notifications = selectedMembers.map(member => ({
+                        user_id: member.user_id,
+                        type: 'group_plan_added',
+                        // Try both message and content
+                        ...(tableInfo?.[0]?.message !== undefined ? { message: `You've been added to the group budget plan: ${budgetName}` } : {}),
+                        ...(tableInfo?.[0]?.content !== undefined ? { content: `You've been added to the group budget plan: ${budgetName}` } : {}),
+                        read: false
+                    }));
+
+                    console.log('Attempting to insert notifications:', notifications);
+
+                    const { error: notifError } = await supabase
+                        .from('notifications')
+                        .insert(notifications);
+
+                    if (notifError) {
+                        console.error('Notification error:', notifError);
+                        throw notifError;
+                    }
+                } catch (error) {
+                    console.error('Error in group member/notification creation:', error);
+                    throw error;
+                }
             }
 
             props.setShowLists(true);
@@ -211,42 +329,76 @@ export default function PlanForm(props) {
                     </div>
 
                     {props.isGroup && (
-                        <div className="flex flex-col justify-center items-center w-full">
-                            <p>Add Group Members:</p>
-                            <div className="flex flex-row w-full space-x-2">
-                                <input 
-                                    placeholder="member name" 
-                                    className="bg-gray-200 w-3/4 h-10 rounded-md p-5" 
-                                    value={memberName} 
-                                    onChange={(e) => setMemberName(e.target.value)}
-                                />
-                                <button 
-                                    type="button" 
-                                    onClick={() => handleTeamMember(memberName)} 
-                                    className="w-1/4 h-10 bg-orange-400 hover:bg-orange-300 rounded-md"
-                                >
-                                    Add Member
-                                </button>
-                            </div>
+                        <div className="mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Add Group Members</h3>
                             
-                            {/* Display added members */}
-                            <div className="mt-4 w-full">
-                                {memberList.length > 0 && (
-                                    <div className="flex flex-col space-y-2">
-                                        <p className="font-semibold">Added Members:</p>
-                                        {memberList.map((member, index) => (
-                                            <div key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded">
-                                                <span>{member}</span>
-                                                <button 
-                                                    onClick={() => addMember(memberList.filter((_, i) => i !== index))}
-                                                    className="text-red-500 hover:text-red-700"
-                                                >
-                                                    ×
-                                                </button>
+                            {/* Friends List */}
+                            <div className="mb-4">
+                                <h4 className="text-md mb-2">Your Friends</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {friends.map(friend => (
+                                        <button
+                                            key={friend.user_id}
+                                            onClick={() => addGroupMember(friend)}
+                                            className="px-3 py-1 bg-blue-100 rounded-full hover:bg-blue-200"
+                                        >
+                                            {friend.username}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Search Users */}
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        console.log('Search term:', value); // Debug log
+                                        setSearchTerm(value);
+                                        searchUsers(value);
+                                    }}
+                                    placeholder="Search users by username..."
+                                    className="w-full p-2 border rounded"
+                                />
+                                {searchResults.length > 0 && (
+                                    <div className="mt-2 border rounded-lg shadow-sm">
+                                        {searchResults.map(user => (
+                                            <div
+                                                key={user.user_id}
+                                                onClick={() => addGroupMember(user)}
+                                                className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                                            >
+                                                <div className="font-medium">{user.username}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {user.first_name} {user.last_name}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Selected Members */}
+                            <div>
+                                <h4 className="text-md mb-2">Selected Members:</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedMembers.map(member => (
+                                        <div
+                                            key={member.user_id}
+                                            className="px-3 py-1 bg-blue-200 rounded-full flex items-center"
+                                        >
+                                            <span>{member.username}</span>
+                                            <button
+                                                onClick={() => removeMember(member.user_id)}
+                                                className="ml-2 text-red-500"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

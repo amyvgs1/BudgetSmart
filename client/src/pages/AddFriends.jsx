@@ -166,53 +166,42 @@ export default function AddFriends() {
     // Send friend request with notification
     const sendRequest = async (friendId, friendUsername) => {
         try {
-            console.log('Starting friend request...', { userId, friendId });
-            
-            // Begin a transaction
-            const { data: friendData, error: friendError } = await supabase
+            // First get the current user's username
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('username')
+                .eq('user_id', userId)
+                .single();
+
+            if (userError) throw userError;
+
+            // Create friendship record
+            const { error: friendError } = await supabase
                 .from('friends')
                 .insert([{
                     user_id: userId,
                     friend_id: friendId,
                     status: 'pending'
-                }])
-                .select();
+                }]);
 
-            console.log('Friend request result:', { friendData, friendError });
+            if (friendError) throw friendError;
 
-            if (friendError) {
-                console.error('Supabase friend request error:', friendError);
-                throw friendError;
-            }
+            // Create notification for the friend request
+            const { error: notifError } = await supabase
+                .from('notifications')
+                .insert([{
+                    user_id: friendId,
+                    type: 'friend_request',
+                    message: `${userData.username} sent you a friend request`,
+                    related_id: userId,
+                    read: false,
+                    created_at: new Date().toISOString()
+                }]);
 
-            try {
-                // Create notification for recipient
-                const { data: notifData, error: notifError } = await supabase
-                    .from('notifications')
-                    .insert([{
-                        user_id: friendId,
-                        type: 'friend_request',
-                        message: `${sessionStorage.getItem('username')} sent you a friend request`,
-                        related_id: userId
-                    }])
-                    .select();
+            if (notifError) throw notifError;
 
-                console.log('Notification result:', { notifData, notifError });
-
-                if (notifError) {
-                    console.error('Supabase notification error:', notifError);
-                    // Don't throw here, just log the error
-                }
-            } catch (notifError) {
-                console.error('Error creating notification:', notifError);
-                // Continue execution even if notification fails
-            }
-
-            // Update UI
-            setUsers(users.filter(user => user.user_id !== friendId));
             await fetchRequests();
             
-            console.log('Friend request completed successfully');
         } catch (error) {
             console.error('Error sending friend request:', error);
         }

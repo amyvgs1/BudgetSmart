@@ -21,7 +21,7 @@ export default function Profile(props) {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
             
-            sessionStorage.clear();
+            localStorage.clear();
             props.setAuth(false);
             navigate('/login');
         } catch (error) {
